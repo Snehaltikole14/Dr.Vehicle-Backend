@@ -1,0 +1,9 @@
+Subject: New Bike Booking Created
+
+Booking ID: {{booking.id}}
+User Name: {{booking.user.name}}
+User Email: {{booking.user.email}}
+Service Type: {{booking.serviceType}}
+Appointment Date: {{booking.appointmentDate}}
+Address: {{booking.address}}
+Status: {{booking.status}}
