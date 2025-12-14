@@ -50,6 +50,8 @@
     <artifactId>spring-boot-starter-validation</artifactId>
 </dependency>
 
+   
+
     <!-- PostgreSQL Driver -->
 <dependency>
     <groupId>org.postgresql</groupId>
@@ -156,3 +158,4 @@
     </build>
 
 </project>
+
