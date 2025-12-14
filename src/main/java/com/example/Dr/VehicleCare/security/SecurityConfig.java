@@ -31,38 +31,35 @@ public class SecurityConfig {
     }
 
     // Security filter chain
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+   http
+    .csrf(csrf -> csrf.disable())
+    .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+    .authorizeHttpRequests(auth -> auth
+        // Allow preflight requests for all endpoints
+        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-        http
-            .csrf(csrf -> csrf.disable()) // disable CSRF for API
-            .cors(cors -> cors.configurationSource(corsConfigurationSource())) // CORS
-            .authorizeHttpRequests(auth -> auth
-                // Public endpoints
-                .requestMatchers("/auth/**").permitAll()
-                .requestMatchers("/uploads/**").permitAll()
-                .requestMatchers("/api/bikes/**").permitAll()
-                .requestMatchers("/api/admin/**").permitAll()
-                .requestMatchers("/api/users/**").permitAll()
-                .requestMatchers("/api/services/**").permitAll()
-                .requestMatchers("/api/customized/**").permitAll()
+        // Public endpoints
+        .requestMatchers("/auth/**").permitAll()
+        .requestMatchers("/uploads/**").permitAll()
+        .requestMatchers("/api/bikes/**").permitAll()
+        .requestMatchers("/api/services/**").permitAll()
 
-                // Authenticated endpoints
-                .requestMatchers("/api/customized/user/**").hasRole("USER")
-                .requestMatchers(HttpMethod.POST, "/api/bookings").hasAnyRole("CUSTOMER", "ADMIN")
-                .requestMatchers("/api/bookings/**").authenticated()
+        // Authenticated endpoints
+        .requestMatchers("/api/customized/user/**").hasRole("USER")
+        .requestMatchers(HttpMethod.POST, "/api/bookings").hasAnyRole("CUSTOMER", "ADMIN")
+        .requestMatchers("/api/bookings/**").authenticated()
 
-                // Admin-only endpoints
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+        // Admin-only endpoints
+        .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                // Provider-only endpoints
-                .requestMatchers("/api/provider/**").hasRole("PROVIDER")
+        // Provider-only endpoints
+        .requestMatchers("/api/provider/**").hasRole("PROVIDER")
 
-                // All other endpoints require authentication
-                .anyRequest().authenticated()
-            )
-            // Stateless session (JWT)
-            .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        // All other endpoints require authentication
+        .anyRequest().authenticated()
+    )
+    .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
 
         // Add JWT filter before UsernamePasswordAuthenticationFilter
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -91,4 +88,5 @@ public class SecurityConfig {
 
 
 }
+
 
