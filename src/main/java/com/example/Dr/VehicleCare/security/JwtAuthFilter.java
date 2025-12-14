@@ -25,36 +25,33 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain
-    ) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
 
         String path = request.getRequestURI();
         String method = request.getMethod();
 
-        // 1️⃣ Allow CORS preflight
+        // Allow CORS preflight
         if ("OPTIONS".equalsIgnoreCase(method)) {
+            response.setStatus(HttpServletResponse.SC_OK);
+            return;
+        }
+
+        // Public endpoints
+        if (path.startsWith("/auth/")
+                || path.startsWith("/uploads/")
+                || path.startsWith("/api/bikes")
+                || path.startsWith("/api/services")
+                || path.startsWith("/api/users")
+                || path.startsWith("/api/admin/bookings")
+                || path.startsWith("/api/customized")
+                || path.startsWith("/api/bikes/companies")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 2️⃣ PUBLIC ENDPOINTS (NO JWT REQUIRED)
-        if (
-            path.startsWith("/auth/")
-            || path.startsWith("/uploads/")
-            || path.startsWith("/api/bikes")
-            || path.startsWith("/api/services")
-            || path.startsWith("/api/users")
-            || path.startsWith("/api/customized")
-            || path.startsWith("/api/bikes/companies")
-        ) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        // 3️⃣ PROTECTED ENDPOINTS → JWT REQUIRED
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
