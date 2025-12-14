@@ -77,7 +77,8 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(List.of(
             "http://localhost:3000",
             "http://127.0.0.1:3000",
-            "https://your-production-domain.com"
+            "https://www.drvehiclecare.com"
+
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
@@ -90,3 +91,4 @@ public class SecurityConfig {
 
 
 }
+
