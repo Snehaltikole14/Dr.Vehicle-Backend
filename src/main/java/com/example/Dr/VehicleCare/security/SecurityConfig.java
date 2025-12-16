@@ -44,7 +44,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/users/**").permitAll()
                 .requestMatchers("/api/services/**").permitAll()
                 .requestMatchers("/api/customized/**").permitAll()
-
+ .requestMatchers("/api/chat/**").permitAll()
                 // Authenticated endpoints
                 .requestMatchers("/api/customized/user/**").hasRole("USER")
                 .requestMatchers(HttpMethod.POST, "/api/bookings").hasAnyRole("CUSTOMER", "ADMIN")
@@ -86,5 +86,6 @@ public class SecurityConfig {
         return source;
     }
 }
+
 
 
