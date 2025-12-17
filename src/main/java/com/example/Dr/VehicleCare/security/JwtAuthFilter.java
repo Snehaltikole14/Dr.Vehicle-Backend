@@ -24,65 +24,43 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         this.jwtProvider = jwtProvider;
     }
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
-            throws ServletException, IOException {
+  @Override
+protected void doFilterInternal(HttpServletRequest request,
+                                HttpServletResponse response,
+                                FilterChain filterChain)
+        throws ServletException, IOException {
 
-        String path = request.getRequestURI();
-        String method = request.getMethod();
+    String authHeader = request.getHeader("Authorization");
 
-        // Allow CORS preflight
-        if ("OPTIONS".equalsIgnoreCase(method)) {
-            response.setStatus(HttpServletResponse.SC_OK);
-            return;
-        }
-
-        // Public endpoints
-        if (path.startsWith("/auth/")
-                || path.startsWith("/uploads/")
-                || path.startsWith("/api/bikes")
-                || path.startsWith("/api/services")
-                || path.startsWith("/api/users")
-                || path.startsWith("/api/chat")
-                || path.startsWith("/api/admin/bookings")
-                || path.startsWith("/api/customized")
-                || path.startsWith("/api/bikes/companies")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        String authHeader = request.getHeader("Authorization");
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Authorization header missing");
-            return;
-        }
-
-        String token = authHeader.substring(7);
-
-        if (!jwtProvider.validateToken(token)) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Invalid or expired JWT token");
-            return;
-        }
-
-        Claims claims = jwtProvider.getClaims(token);
-        String userId = claims.getSubject();
-        String role = claims.get("role", String.class);
-
-        UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(
-                        userId,
-                        null,
-                        List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                );
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        filterChain.doFilter(request, response);
+    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        filterChain.doFilter(request, response); // allow anonymous
+        return;
     }
+
+    String token = authHeader.substring(7);
+
+    if (!jwtProvider.validateToken(token)) {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        return;
+    }
+
+    Claims claims = jwtProvider.getClaims(token);
+    String userId = claims.getSubject();
+    String role = claims.get("role", String.class);
+
+    UsernamePasswordAuthenticationToken authentication =
+            new UsernamePasswordAuthenticationToken(
+                    userId,
+                    null,
+                    List.of(new SimpleGrantedAuthority("ROLE_" + role))
+            );
+
+    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+    filterChain.doFilter(request, response);
 }
+
+       
+}
+
 
