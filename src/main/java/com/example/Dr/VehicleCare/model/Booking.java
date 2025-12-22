@@ -65,6 +65,8 @@ public class Booking {
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private CustomizedServiceRequest customizedService;
 
+    
+    private Double servicePrice;
 
 
 
@@ -94,6 +96,7 @@ public class Booking {
     private User technician;
 
     // Payment status
+    @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
 
@@ -103,4 +106,5 @@ public class Booking {
 
     // Timestamp
     private LocalDateTime createdAt = LocalDateTime.now();
+   
 }
