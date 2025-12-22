@@ -77,7 +77,7 @@ public class SecurityConfig {
             "https://www.drvehiclecare.com",
             "https://drvehiclecare.com"
         ));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
@@ -86,6 +86,7 @@ public class SecurityConfig {
         return source;
     }
 }
+
 
 
 
