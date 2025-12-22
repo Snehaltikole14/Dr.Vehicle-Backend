@@ -1,6 +1,10 @@
 package com.example.Dr.VehicleCare.controller;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -13,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.Dr.VehicleCare.model.Booking;
 import com.example.Dr.VehicleCare.model.User;
 import com.example.Dr.VehicleCare.model.enums.BookingStatus;
+import com.example.Dr.VehicleCare.model.enums.PaymentStatus;
 import com.example.Dr.VehicleCare.model.enums.UserRole;
 import com.example.Dr.VehicleCare.repository.BookingRepository;
 import com.example.Dr.VehicleCare.repository.UserRepository;
@@ -58,6 +63,64 @@ public class AdminController {
 
         return ResponseEntity.ok(booking);
     }
+    
+    @GetMapping("/stats")
+    public ResponseEntity<?> getStats() {
+
+        long totalUsers = userRepository.count();
+        long totalMechanics = userRepository.countByRole(UserRole.TECHNICIAN);
+        long totalBookings = bookingRepository.count();
+
+        // Only PAID bookings
+        List<Booking> paidBookings =
+                bookingRepository.findByPaymentStatus(PaymentStatus.PAID);
+
+        // Current month range
+        LocalDateTime startOfMonth =
+                LocalDate.now().withDayOfMonth(1).atStartOfDay();
+        LocalDateTime now = LocalDateTime.now();
+
+        // ✅ MONTHLY REVENUE
+        double monthlyRevenue = paidBookings.stream()
+                .filter(b -> b.getCreatedAt() != null)
+                .filter(b -> !b.getCreatedAt().isBefore(startOfMonth)
+                          && !b.getCreatedAt().isAfter(now))
+                .mapToDouble(b -> b.getServicePrice() != null ? b.getServicePrice() : 0)
+                .sum();
+
+        // ✅ REVENUE BY DAY (for graph)
+        List<Map<String, Object>> revenueByMonth = paidBookings.stream()
+                .filter(b -> b.getCreatedAt() != null)
+                .filter(b -> !b.getCreatedAt().isBefore(startOfMonth))
+                .collect(Collectors.groupingBy(
+                        b -> b.getCreatedAt().getDayOfMonth(),
+                        Collectors.summingDouble(
+                                b -> b.getServicePrice() != null ? b.getServicePrice() : 0
+                        )
+                ))
+                .entrySet()
+                .stream()
+                .sorted(Map.Entry.comparingByKey())
+                .map(e -> Map.<String, Object>of(
+                        "month", "Day " + e.getKey(),
+                        "amount", e.getValue()
+                ))
+                .toList();
+
+        return ResponseEntity.ok(Map.of(
+                "totalUsers", totalUsers,
+                "totalMechanics", totalMechanics,
+                "totalBookings", totalBookings,
+                "revenue", monthlyRevenue,
+                "revenueByMonth", revenueByMonth
+        ));
+    }
+
+
+
+
+
+
     
     /** APPROVE booking */
     @PatchMapping("/bookings/{id}/approve")
@@ -113,6 +176,13 @@ public class AdminController {
 
         return ResponseEntity.ok(bookingOpt.get());
     }
+    
+    @GetMapping("/customers")
+    public ResponseEntity<List<User>> getAllCustomers() {
+        List<User> customers = userRepository.findByRole(UserRole.CUSTOMER);
+        return ResponseEntity.ok(customers);
+    }
+
     
     
     
