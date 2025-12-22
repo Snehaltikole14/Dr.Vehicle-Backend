@@ -27,6 +27,7 @@ public class BookingRequest {
     private Double longitude;
 
     private String notes;
+    private Double servicePrice;
     private CustomizedServiceDTO customizedService;
 
 
