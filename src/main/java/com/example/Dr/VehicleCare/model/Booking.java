@@ -106,5 +106,9 @@ public class Booking {
 
     // Timestamp
     private LocalDateTime createdAt = LocalDateTime.now();
+
+     @Column(name = "time_slot", nullable = false)
+    private String timeSlot;
    
 }
+
