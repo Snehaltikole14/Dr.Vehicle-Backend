@@ -84,6 +84,7 @@ public class BookingController {
         booking.setCity(req.getCity());
         booking.setPincode(req.getPincode());
         booking.setLandmark(req.getLandmark());
+         booking.setTimeSlot(req.getTimeSlot());
         booking.setLatitude(req.getLatitude());
         booking.setLongitude(req.getLongitude());
         booking.setNotes(req.getNotes());
@@ -162,3 +163,4 @@ public class BookingController {
         return ResponseEntity.ok("Booking deleted successfully");
     }
 }
+
