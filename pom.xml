@@ -59,6 +59,20 @@
     <scope>runtime</scope>
 </dependency>
 
+      <!-- Razorpay Java SDK -->
+<dependency>
+    <groupId>com.razorpay</groupId>
+    <artifactId>razorpay-java</artifactId>
+    <version>1.4.3</version>
+</dependency>
+
+<!-- org.json (required by Razorpay) -->
+<dependency>
+    <groupId>org.json</groupId>
+    <artifactId>json</artifactId>
+    <version>20240303</version>
+</dependency>
+
     <dependency>
   <groupId>javax.xml.bind</groupId>
   <artifactId>jaxb-api</artifactId>
@@ -158,4 +172,5 @@
     </build>
 
 </project>
+
 
