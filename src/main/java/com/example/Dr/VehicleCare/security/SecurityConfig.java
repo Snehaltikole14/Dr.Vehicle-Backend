@@ -40,12 +40,13 @@ public class SecurityConfig {
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers("/api/bikes/**").permitAll()
+                .requestMatchers("/api/payments/**").permitAll()
                 .requestMatchers("/api/admin/**").permitAll()
                 .requestMatchers("/api/users/**").permitAll()
                 .requestMatchers("/api/services/**").permitAll()
+                .requestMatchers("/api/chat/**").permitAll()
                 .requestMatchers("/api/customized/**").permitAll()
-                                   .requestMatchers("/api/payments/**").permitAll()
- .requestMatchers("/api/chat/**").permitAll()
+
                 // Authenticated endpoints
                 .requestMatchers("/api/customized/user/**").hasRole("USER")
                 .requestMatchers(HttpMethod.POST, "/api/bookings").hasAnyRole("CUSTOMER", "ADMIN")
@@ -87,6 +88,7 @@ public class SecurityConfig {
         return source;
     }
 }
+
 
 
 
