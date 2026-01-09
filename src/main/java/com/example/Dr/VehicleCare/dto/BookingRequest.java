@@ -29,8 +29,10 @@ public class BookingRequest {
     private String notes;
     private Double servicePrice;
     private CustomizedServiceDTO customizedService;
+       private String timeSlot;
 
 
 }
+
 
 
