@@ -34,6 +34,10 @@ public class User {
     private String passwordHash;
 
     private String phone;
+    
+    @Column(unique = true, nullable = true)
+    private String email;
+
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -49,4 +53,5 @@ public class User {
 
     
 }
+
 
