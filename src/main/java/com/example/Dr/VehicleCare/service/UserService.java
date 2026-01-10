@@ -33,6 +33,10 @@ public class UserService {
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);
     }
+    public Optional<User> findByPhone(String phone) {
+    return userRepository.findByPhone(phone);
+}
+
 
     public Optional<User> findByEmailOrName(String emailOrName) {
         return userRepository.findByEmailOrName(emailOrName, emailOrName);
@@ -142,3 +146,4 @@ public class UserService {
     }
 
 }
+
