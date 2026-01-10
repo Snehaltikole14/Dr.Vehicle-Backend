@@ -12,6 +12,7 @@ import com.example.Dr.VehicleCare.model.enums.UserRole;
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
     Optional<User> findByName(String name);
+    Optional<User> findByPhone(String phone);
     
     
     Optional<User> findByEmailOrName(String email, String name);
@@ -19,3 +20,4 @@ public interface UserRepository extends JpaRepository<User, Long> {
     List<User> findByRole(UserRole role);
 
 }
+
