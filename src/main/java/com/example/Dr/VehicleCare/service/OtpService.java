@@ -53,32 +53,38 @@ public class OtpService {
         return otpCode;
     }
 
-    private void sendSms(String phoneNumber, String otpCode) {
-        String message = "Your OTP for Dr.VehicleCare is " + otpCode;
-        String url = "https://www.fast2sms.com/dev/bulkV2";
+  private void sendSms(String phoneNumber, String otpCode) {
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("authorization", apiKey);
+    String url = "https://www.fast2sms.com/dev/bulkV2";
+    String message = "Your OTP for Dr.VehicleCare is " + otpCode;
 
-        Map<String, Object> body = Map.of(
-                "route", "v3",
-                "sender_id", "TXTIND",
-                "message", message,
-                "language", "english",
-                "flash", 0,
-                "numbers", phoneNumber
-        );
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(MediaType.APPLICATION_JSON);
+    headers.set("authorization", apiKey);
 
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+    Map<String, Object> body = Map.of(
+            "route", "q",                 // ✅ FIXED
+            "language", "english",
+            "message", message,
+            "numbers", phoneNumber        // format: 91XXXXXXXXXX
+    );
 
-        try {
-            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-            System.out.println("SMS sent response: " + response.getBody());
-        } catch (Exception e) {
-            System.out.println("Error sending SMS: " + e.getMessage());
-        }
+    HttpEntity<Map<String, Object>> request =
+            new HttpEntity<>(body, headers);
+
+    try {
+        ResponseEntity<String> response =
+                restTemplate.postForEntity(url, request, String.class);
+
+        System.out.println("Fast2SMS STATUS : " + response.getStatusCode());
+        System.out.println("Fast2SMS BODY   : " + response.getBody());
+
+    } catch (Exception e) {
+        System.out.println("Error sending SMS: ");
+        e.printStackTrace();
     }
+}
+
 
     public boolean verifyOtp(String email, String code) {
         return otpRepository.findByEmailAndCode(email, code)
@@ -89,3 +95,4 @@ public class OtpService {
                 }).orElse(false);
     }
 }
+
