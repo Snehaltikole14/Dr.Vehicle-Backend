@@ -23,6 +23,8 @@ public class Otp {
     private Long id;
 
     private String email; // user email
+     private String phone;
     private String code;  // OTP code
     private LocalDateTime expiresAt;
 }
+
