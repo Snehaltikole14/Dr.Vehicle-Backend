@@ -26,17 +26,10 @@ import jakarta.validation.Valid;
 @CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class AuthController {
 
-    @Autowired
-    private UserService userService;
-
-    @Autowired
-    private JwtService jwtService;
-
-    @Autowired
-    private OtpService otpService;
-
-    @Autowired
-    private EmailService emailService;
+    @Autowired private UserService userService;
+    @Autowired private JwtService jwtService;
+    @Autowired private OtpService otpService;
+    @Autowired private EmailService emailService;
 
     // ===================== SIGNUP =====================
 
@@ -52,7 +45,6 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Phone number already registered");
 
         otpService.generateOtp(phone);
-
         return ResponseEntity.ok("OTP sent to your phone number");
     }
 
@@ -66,7 +58,6 @@ public class AuthController {
         User user = new User();
         user.setName(request.getName());
         user.setPhone(request.getPhone());
-        user.setEmail(request.getEmail()); // OPTIONAL
         user.setPasswordHash(request.getPassword());
         user.setRole(
                 request.getRole() != null
@@ -84,9 +75,6 @@ public class AuthController {
 
         String emailOrName = request.get("emailOrName");
         String password = request.get("password");
-
-        if (emailOrName == null || password == null)
-            return ResponseEntity.badRequest().body("Email/Name and password are required");
 
         Optional<User> optionalUser = userService.findByEmailOrName(emailOrName);
         if (optionalUser.isEmpty())
@@ -123,17 +111,13 @@ public class AuthController {
 
         otpService.generateOtp(user.getPhone());
 
-        try {
-            emailService.sendSimpleMessage(
-                    email,
-                    "Dr.VehicleCare - Password Reset OTP",
-                    "<p>Your OTP has been sent to your registered mobile number.</p>"
-            );
-        } catch (Exception e) {
-            System.out.println("Email sending failed: " + e.getMessage());
-        }
+        emailService.sendSimpleMessage(
+                email,
+                "Dr.VehicleCare - Password Reset OTP",
+                "<p>Your OTP has been sent to your registered phone number.</p>"
+        );
 
-        return ResponseEntity.ok("OTP sent to your registered phone number");
+        return ResponseEntity.ok("OTP sent to your phone number");
     }
 
     @PostMapping("/reset-password")
