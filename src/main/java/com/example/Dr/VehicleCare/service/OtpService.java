@@ -31,27 +31,19 @@ public class OtpService {
     @Value("${fast2sms.apiKey}")
     private String apiKey;
 
-    public String generateOtp(String email, String phoneNumber) {
-        String otpCode = String.format("%06d", new Random().nextInt(999999));
+public String generateOtp(String phoneNumber) {
 
-        Otp otp = new Otp();
-        otp.setEmail(email);
-        otp.setCode(otpCode);
-        otp.setExpiresAt(LocalDateTime.now().plusMinutes(5));
-        otpRepository.save(otp);
+    String otpCode = String.format("%06d", new Random().nextInt(999999));
 
-        // Send SMS
-        sendSms(phoneNumber, otpCode);
+    Otp otp = new Otp();
+    otp.setPhone(phoneNumber);
+    otp.setCode(otpCode);
+    otp.setExpiresAt(LocalDateTime.now().plusMinutes(5));
+    otpRepository.save(otp);
 
-        // Send Email
-        emailService.sendSimpleMessage(
-            email,
-            "Your Dr.VehicleCare OTP Code",
-            "<h3>Your OTP Code is: <b>" + otpCode + "</b></h3><p>This code will expire in 5 minutes.</p>"
-        );
-
-        return otpCode;
-    }
+    sendSms(phoneNumber, otpCode);
+    return otpCode;
+}
 
   private void sendSms(String phoneNumber, String otpCode) {
 
@@ -86,13 +78,15 @@ public class OtpService {
 }
 
 
-    public boolean verifyOtp(String email, String code) {
-        return otpRepository.findByEmailAndCode(email, code)
-                .filter(o -> o.getExpiresAt().isAfter(LocalDateTime.now()))
-                .map(o -> {
-                    otpRepository.delete(o);
-                    return true;
-                }).orElse(false);
-    }
+    public boolean verifyOtp(String phone, String code) {
+    return otpRepository.findByPhoneAndCode(phone, code)
+            .filter(o -> o.getExpiresAt().isAfter(LocalDateTime.now()))
+            .map(o -> {
+                otpRepository.delete(o);
+                return true;
+            }).orElse(false);
 }
+
+}
+
 
