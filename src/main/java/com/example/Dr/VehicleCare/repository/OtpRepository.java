@@ -6,6 +6,8 @@ import com.example.Dr.VehicleCare.model.Otp;
 
 public interface OtpRepository extends JpaRepository<Otp, Long> {
     Optional<Otp> findByEmailAndCode(String email, String code);
+     Optional<Otp> findByPhoneAndCode(String phone, String code);
     void deleteByEmail(String email);
 }
+
 
