@@ -30,21 +30,20 @@ public class UserService {
         return userRepository.findByName(name);
     }
 
-    public Optional<User> findByEmail(String email) {
-        return userRepository.findByEmail(email);
-    }
     public Optional<User> findByPhone(String phone) {
-    return userRepository.findByPhone(phone);
-}
+        return userRepository.findByPhone(phone);
+    }
 
+    public Optional<User> findByPhoneOrName(String phoneOrName) {
+        return userRepository.findByPhoneOrName(phoneOrName);
+    }
 
-    public Optional<User> findByEmailOrName(String emailOrName) {
-        return userRepository.findByEmailOrName(emailOrName, emailOrName);
+    public Optional<User> findById(Long id) {
+        return userRepository.findById(id);
     }
 
     // ==================== REGISTER CUSTOMER ====================
     public User registerCustomer(User user) {
-        // Encode the raw password exactly once
         user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash()));
         if (user.getRole() == null) user.setRole(UserRole.CUSTOMER);
         return userRepository.save(user);
@@ -55,7 +54,7 @@ public class UserService {
         return passwordEncoder.matches(rawPassword, user.getPasswordHash());
     }
 
-    // ==================== CREATE PASSWORD RESET TOKEN ====================
+    // ==================== PASSWORD RESET TOKEN ====================
     public void createPasswordResetTokenForUser(User user, String appUrl) {
         String token = UUID.randomUUID().toString();
 
@@ -73,10 +72,11 @@ public class UserService {
                      + resetUrl
                      + "\nThis link expires in 2 hours.";
 
-        emailService.sendSimpleMessage(user.getEmail(), "Password Reset Request", body);
+        if (user.getEmail() != null) {
+            emailService.sendSimpleMessage(user.getEmail(), "Password Reset Request", body);
+        }
     }
 
-    // ==================== VALIDATE PASSWORD RESET TOKEN ====================
     public Optional<User> validatePasswordResetToken(String token) {
         return tokenRepository.findByToken(token)
                 .filter(t -> t.getExpiryDate().isAfter(LocalDateTime.now()))
@@ -90,60 +90,50 @@ public class UserService {
         tokenRepository.findByUser(user).ifPresent(tokenRepository::delete);
     }
 
-    // ==================== UPDATE USER ====================
-    public User updateUser(User user) {
-        return userRepository.save(user);
-    }
-    // Get all users
+    // ==================== CRUD OPERATIONS ====================
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
 
-    // Get by ID
     public User getUserById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
     }
 
-    // Update user
     public User updateUser(Long id, User updatedUser) {
         User existing = getUserById(id);
 
         existing.setName(updatedUser.getName());
-        existing.setEmail(updatedUser.getEmail());
         existing.setPhone(updatedUser.getPhone());
         existing.setRole(updatedUser.getRole());
+
+        // Email is optional; update only if not null
+        if (updatedUser.getEmail() != null) {
+            existing.setEmail(updatedUser.getEmail());
+        }
 
         return userRepository.save(existing);
     }
 
-    // Delete user
     public void deleteUser(Long id) {
         if (!userRepository.existsById(id)) {
             throw new RuntimeException("User not found");
         }
         userRepository.deleteById(id);
     }
-    
-    public Optional<User> findById(Long id) {
-        return userRepository.findById(id);
-    }
 
     public User save(User user) {
         return userRepository.save(user);
     }
+
     public void changePassword(Long userId, String oldPassword, String newPassword) {
         User user = getUserById(userId);
 
-        // Validate old password
         if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
             throw new RuntimeException("Old password is incorrect");
         }
 
-        // Set new password
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
-
 }
-
