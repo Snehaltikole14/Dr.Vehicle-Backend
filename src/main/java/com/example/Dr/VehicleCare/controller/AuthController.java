@@ -35,44 +35,44 @@ public class AuthController {
     @Autowired private EmailService emailService;
 
     // ===================== SIGNUP FLOW =====================
-    @PostMapping("/signup/request-otp")
-    public ResponseEntity<?> requestSignupOtp(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        String phone = request.get("phone");
+  @PostMapping("/signup/request-otp")
+public ResponseEntity<?> requestSignupOtp(@RequestBody Map<String, String> request) {
 
-        if (email == null || phone == null)
-            return ResponseEntity.badRequest().body("Email and phone number are required");
+    String phone = request.get("phone");
 
-        if (userService.findByEmail(email).isPresent())
-            return ResponseEntity.badRequest().body("Email already exists");
+    if (phone == null)
+        return ResponseEntity.badRequest().body("Phone number is required");
 
-        String otp = otpService.generateOtp(email, phone);
+    if (userService.findByPhone(phone).isPresent())
+        return ResponseEntity.badRequest().body("Phone number already registered");
 
-        try {
-            emailService.sendSimpleMessage(email, "Dr.VehicleCare - Signup OTP",
-                    "<p>Your OTP for signup is <b>" + otp + "</b>. It will expire in 5 minutes.</p>");
-        } catch (Exception e) {
-            System.out.println("Email sending failed: " + e.getMessage());
-        }
+    otpService.generateOtp(phone);
 
-        return ResponseEntity.ok("OTP sent to your phone and email");
-    }
+    return ResponseEntity.ok("OTP sent to your phone number");
+}
+
 
     @PostMapping("/signup/verify-otp")
-    public ResponseEntity<?> verifySignupOtp(@Valid @RequestBody SignUpRequest request) {
-        boolean verified = otpService.verifyOtp(request.getEmail(), request.getOtp());
-        if (!verified) return ResponseEntity.badRequest().body("Invalid or expired OTP");
+public ResponseEntity<?> verifySignupOtp(@Valid @RequestBody SignUpRequest request) {
 
-        User user = new User();
-        user.setName(request.getName());
-        user.setEmail(request.getEmail());
-        user.setPhone(request.getPhone());
-        user.setPasswordHash(request.getPassword()); // <-- raw password, encode in service
-        user.setRole(request.getRole() != null ? UserRole.valueOf(request.getRole()) : UserRole.CUSTOMER);
+    boolean verified = otpService.verifyOtp(request.getPhone(), request.getOtp());
+    if (!verified)
+        return ResponseEntity.badRequest().body("Invalid or expired OTP");
 
-        User registeredUser = userService.registerCustomer(user);
-        return ResponseEntity.ok(registeredUser);
-    }
+    User user = new User();
+    user.setName(request.getName());
+    user.setPhone(request.getPhone());
+    user.setPasswordHash(request.getPassword());
+    user.setRole(
+        request.getRole() != null
+            ? UserRole.valueOf(request.getRole())
+            : UserRole.CUSTOMER
+    );
+
+    User registeredUser = userService.registerCustomer(user);
+    return ResponseEntity.ok(registeredUser);
+}
+
 
     // ===================== LOGIN =====================
     @PostMapping("/login")
@@ -156,3 +156,4 @@ public class AuthController {
 //        return ResponseEntity.ok(Map.of("token", token));
 //    }
 }
+
