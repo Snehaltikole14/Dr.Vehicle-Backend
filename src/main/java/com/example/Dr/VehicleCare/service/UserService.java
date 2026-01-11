@@ -26,6 +26,10 @@ public class UserService {
     private final EmailService emailService;
 
     // ==================== FIND USERS ====================
+    public Optional<User> findById(Long id) {
+        return userRepository.findById(id);
+    }
+
     public Optional<User> findByName(String name) {
         return userRepository.findByName(name);
     }
@@ -34,49 +38,55 @@ public class UserService {
         return userRepository.findByPhone(phone);
     }
 
- public Optional<User> findByLoginId(String loginId) {
-    return userRepository.findByPhoneOrNameOrEmail(
-            loginId,
-            loginId,
-            loginId
-    );
-}
-
-
-
-    public Optional<User> findById(Long id) {
-        return userRepository.findById(id);
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
     }
 
-    // ==================== REGISTER CUSTOMER ====================
+    // ==================== LOGIN SUPPORT ====================
+    public Optional<User> findByLoginId(String loginId) {
+        // Try email first
+        Optional<User> byEmail = userRepository.findByEmail(loginId);
+        if (byEmail.isPresent()) return byEmail;
+
+        // Then phone
+        Optional<User> byPhone = userRepository.findByPhone(loginId);
+        if (byPhone.isPresent()) return byPhone;
+
+        // Then name
+        return userRepository.findByName(loginId);
+    }
+
+    // ==================== REGISTER ====================
     public User registerCustomer(User user) {
-        user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash()));
+        // Encode password
+        if (user.getPasswordHash() != null) {
+            user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash()));
+        }
         if (user.getRole() == null) user.setRole(UserRole.CUSTOMER);
         return userRepository.save(user);
     }
 
     // ==================== PASSWORD VALIDATION ====================
     public boolean validatePassword(User user, String rawPassword) {
+        if (user.getPasswordHash() == null) return false; // Avoid NPE
         return passwordEncoder.matches(rawPassword, user.getPasswordHash());
     }
 
     // ==================== PASSWORD RESET TOKEN ====================
     public void createPasswordResetTokenForUser(User user, String appUrl) {
         String token = UUID.randomUUID().toString();
-
         PasswordResetToken prt = PasswordResetToken.builder()
                 .token(token)
                 .user(user)
                 .expiryDate(LocalDateTime.now().plusHours(2))
                 .build();
-
         tokenRepository.findByUser(user).ifPresent(tokenRepository::delete);
         tokenRepository.save(prt);
 
         String resetUrl = appUrl + "/api/users/resetPassword?token=" + token;
         String body = "To reset your password click the link below:\n"
-                     + resetUrl
-                     + "\nThis link expires in 2 hours.";
+                + resetUrl
+                + "\nThis link expires in 2 hours.";
 
         if (user.getEmail() != null) {
             emailService.sendSimpleMessage(user.getEmail(), "Password Reset Request", body);
@@ -108,40 +118,15 @@ public class UserService {
 
     public User updateUser(Long id, User updatedUser) {
         User existing = getUserById(id);
-
         existing.setName(updatedUser.getName());
         existing.setPhone(updatedUser.getPhone());
         existing.setRole(updatedUser.getRole());
-
-        // Email is optional; update only if not null
-        if (updatedUser.getEmail() != null) {
-            existing.setEmail(updatedUser.getEmail());
-        }
-
+        if (updatedUser.getEmail() != null) existing.setEmail(updatedUser.getEmail());
         return userRepository.save(existing);
     }
 
     public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new RuntimeException("User not found");
-        }
+        if (!userRepository.existsById(id)) throw new RuntimeException("User not found");
         userRepository.deleteById(id);
     }
-
-    public User save(User user) {
-        return userRepository.save(user);
-    }
-
-    public void changePassword(Long userId, String oldPassword, String newPassword) {
-        User user = getUserById(userId);
-
-        if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
-            throw new RuntimeException("Old password is incorrect");
-        }
-
-        user.setPasswordHash(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
-    }
 }
-
-
