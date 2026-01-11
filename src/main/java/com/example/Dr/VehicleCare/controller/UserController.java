@@ -53,10 +53,14 @@ public class UserController {
     }
 
     // UPDATE User
-    @PutMapping("/{id}")
-    public User updateUser(@PathVariable Long id, @RequestBody User user) {
-        return userService.updateUser(id, user);
-    }
+   @PutMapping("/{id}")
+public ResponseEntity<User> updateUser(
+        @PathVariable Long id,
+        @RequestBody User user
+) {
+    return ResponseEntity.ok(userService.updateUser(id, user));
+}
+
 
     // DELETE User
     @DeleteMapping("/{id}")
@@ -98,3 +102,4 @@ public class UserController {
         return ResponseEntity.ok("Password changed successfully");
     }
 }
+
