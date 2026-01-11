@@ -5,16 +5,11 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.example.Dr.VehicleCare.dto.SignUpRequest;
 import com.example.Dr.VehicleCare.model.User;
 import com.example.Dr.VehicleCare.model.enums.UserRole;
-import com.example.Dr.VehicleCare.service.EmailService;
 import com.example.Dr.VehicleCare.service.JwtService;
 import com.example.Dr.VehicleCare.service.OtpService;
 import com.example.Dr.VehicleCare.service.UserService;
@@ -29,7 +24,6 @@ public class AuthController {
     @Autowired private UserService userService;
     @Autowired private JwtService jwtService;
     @Autowired private OtpService otpService;
-    @Autowired private EmailService emailService;
 
     // ===================== SIGNUP =====================
 
@@ -70,72 +64,71 @@ public class AuthController {
 
     // ===================== LOGIN =====================
 
-   @PostMapping("/login")
-public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
 
-    String phoneOrName = request.get("phoneOrName");
-    String password = request.get("password");
+        // 🔥 MATCH FRONTEND KEY
+        String phoneOrName = request.get("emailOrName");
+        String password = request.get("password");
 
-    if (phoneOrName == null || password == null)
-        return ResponseEntity.badRequest().body("Phone/Name and password are required");
+        if (phoneOrName == null || password == null)
+            return ResponseEntity.badRequest().body("Phone/Name and password are required");
 
-    Optional<User> optionalUser = userService.findByPhoneOrName(phoneOrName);
+        Optional<User> optionalUser = userService.findByPhoneOrName(phoneOrName);
 
-    if (optionalUser.isEmpty())
-        return ResponseEntity.badRequest().body("Invalid credentials");
+        if (optionalUser.isEmpty())
+            return ResponseEntity.badRequest().body("Invalid credentials");
 
-    User user = optionalUser.get();
+        User user = optionalUser.get();
 
-    if (!userService.validatePassword(user, password))
-        return ResponseEntity.badRequest().body("Invalid credentials");
+        if (!userService.validatePassword(user, password))
+            return ResponseEntity.badRequest().body("Invalid credentials");
 
-    String token = jwtService.generateToken(
-            String.valueOf(user.getId()),
-            user.getRole().name()
-    );
+        String token = jwtService.generateToken(
+                String.valueOf(user.getId()),
+                user.getRole().name()
+        );
 
-    return ResponseEntity.ok(Map.of(
-            "id", user.getId(),
-            "name", user.getName(),
-            "phone", user.getPhone(),
-            "role", user.getRole().name(),
-            "token", token
-    ));
-}
+        return ResponseEntity.ok(Map.of(
+                "id", user.getId(),
+                "name", user.getName(),
+                "phone", user.getPhone(),
+                "role", user.getRole().name(),
+                "token", token
+        ));
+    }
 
-
-    // ===================== FORGOT PASSWORD =====================
+    // ===================== FORGOT PASSWORD (PHONE BASED) =====================
 
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
 
-        String email = request.get("email");
+        String phone = request.get("phone");
 
-        User user = userService.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Email not registered"));
+        if (phone == null)
+            return ResponseEntity.badRequest().body("Phone number is required");
 
-        otpService.generateOtp(user.getPhone());
+        User user = userService.findByPhone(phone)
+                .orElseThrow(() -> new RuntimeException("Phone not registered"));
 
-        emailService.sendSimpleMessage(
-                email,
-                "Dr.VehicleCare - Password Reset OTP",
-                "<p>Your OTP has been sent to your registered phone number.</p>"
-        );
+        otpService.generateOtp(phone);
 
         return ResponseEntity.ok("OTP sent to your phone number");
     }
 
+    // ===================== RESET PASSWORD =====================
+
     @PostMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
 
-        String email = request.get("email");
+        String phone = request.get("phone");
         String otp = request.get("otp");
         String newPassword = request.get("newPassword");
 
-        User user = userService.findByEmail(email)
+        User user = userService.findByPhone(phone)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        boolean verified = otpService.verifyOtp(user.getPhone(), otp);
+        boolean verified = otpService.verifyOtp(phone, otp);
         if (!verified)
             return ResponseEntity.badRequest().body("Invalid or expired OTP");
 
@@ -143,4 +136,3 @@ public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
         return ResponseEntity.ok("Password reset successfully");
     }
 }
-
