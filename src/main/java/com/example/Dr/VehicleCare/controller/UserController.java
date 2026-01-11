@@ -97,9 +97,11 @@ public ResponseEntity<User> updateUser(
 
         // Update password
         user.setPasswordHash(passwordEncoder.encode(newPassword));
-        userService.updateUser(user);
+        userService.changePassword(userId, oldPassword, newPassword);
+
 
         return ResponseEntity.ok("Password changed successfully");
     }
 }
+
 
