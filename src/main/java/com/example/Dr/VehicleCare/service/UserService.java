@@ -34,9 +34,14 @@ public class UserService {
         return userRepository.findByPhone(phone);
     }
 
-   public Optional<User> findByPhoneOrName(String phoneOrName) {
-    return userRepository.findByPhoneOrName(phoneOrName, phoneOrName);
+ public Optional<User> findByLoginId(String loginId) {
+    return userRepository.findByPhoneOrNameOrEmail(
+            loginId,
+            loginId,
+            loginId
+    );
 }
+
 
 
     public Optional<User> findById(Long id) {
@@ -138,4 +143,5 @@ public class UserService {
         userRepository.save(user);
     }
 }
+
 
