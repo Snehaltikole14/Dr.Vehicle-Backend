@@ -65,38 +65,41 @@ public class AuthController {
     // ===================== LOGIN =====================
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
+public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
 
-        // 🔥 MATCH FRONTEND KEY
-        String phoneOrName = request.get("emailOrName");
-        String password = request.get("password");
+    String loginId = request.get("emailOrName"); // frontend key
+    String password = request.get("password");
 
-        if (phoneOrName == null || password == null)
-            return ResponseEntity.badRequest().body("Phone/Name and password are required");
-
-        Optional<User> optionalUser = userService.findByPhoneOrName(phoneOrName);
-
-        if (optionalUser.isEmpty())
-            return ResponseEntity.badRequest().body("Invalid credentials");
-
-        User user = optionalUser.get();
-
-        if (!userService.validatePassword(user, password))
-            return ResponseEntity.badRequest().body("Invalid credentials");
-
-        String token = jwtService.generateToken(
-                String.valueOf(user.getId()),
-                user.getRole().name()
-        );
-
-        return ResponseEntity.ok(Map.of(
-                "id", user.getId(),
-                "name", user.getName(),
-                "phone", user.getPhone(),
-                "role", user.getRole().name(),
-                "token", token
-        ));
+    if (loginId == null || password == null) {
+        return ResponseEntity.badRequest().body("Login ID and password required");
     }
+
+    Optional<User> optionalUser = userService.findByLoginId(loginId);
+
+    if (optionalUser.isEmpty()) {
+        return ResponseEntity.badRequest().body("Invalid credentials");
+    }
+
+    User user = optionalUser.get();
+
+    if (!userService.validatePassword(user, password)) {
+        return ResponseEntity.badRequest().body("Invalid credentials");
+    }
+
+    String token = jwtService.generateToken(
+            String.valueOf(user.getId()),
+            user.getRole().name()
+    );
+
+    return ResponseEntity.ok(Map.of(
+            "id", user.getId(),
+            "name", user.getName(),
+            "email", user.getEmail(),
+            "phone", user.getPhone(),
+            "role", user.getRole().name(),
+            "token", token
+    ));
+}
 
     // ===================== FORGOT PASSWORD (PHONE BASED) =====================
 
@@ -136,3 +139,4 @@ public class AuthController {
         return ResponseEntity.ok("Password reset successfully");
     }
 }
+
