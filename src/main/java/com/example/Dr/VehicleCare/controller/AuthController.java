@@ -63,7 +63,8 @@ public class AuthController {
     }
 
     // ===================== LOGIN =====================
-@PostMapping("/login")
+
+   @PostMapping("/login")
 public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
 
     String loginId = request.get("emailOrName");
@@ -99,8 +100,6 @@ public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
             "token", token
     ));
 }
-
-
 
     // ===================== FORGOT PASSWORD (PHONE BASED) =====================
 
@@ -140,7 +139,4 @@ public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
         return ResponseEntity.ok("Password reset successfully");
     }
 }
-
-
-
 
