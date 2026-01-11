@@ -64,10 +64,10 @@ public class AuthController {
 
     // ===================== LOGIN =====================
 
-    @PostMapping("/login")
+   @PostMapping("/login")
 public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
 
-    String loginId = request.get("emailOrName"); // frontend key
+    String loginId = request.get("emailOrName");
     String password = request.get("password");
 
     if (loginId == null || password == null) {
@@ -139,4 +139,5 @@ public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
         return ResponseEntity.ok("Password reset successfully");
     }
 }
+
 
