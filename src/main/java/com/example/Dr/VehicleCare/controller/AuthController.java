@@ -70,34 +70,39 @@ public class AuthController {
 
     // ===================== LOGIN =====================
 
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
+   @PostMapping("/login")
+public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
 
-        String emailOrName = request.get("emailOrName");
-        String password = request.get("password");
+    String phoneOrName = request.get("phoneOrName");
+    String password = request.get("password");
 
-        Optional<User> optionalUser = userService.findByEmailOrName(emailOrName);
-        if (optionalUser.isEmpty())
-            return ResponseEntity.badRequest().body("Invalid credentials");
+    if (phoneOrName == null || password == null)
+        return ResponseEntity.badRequest().body("Phone/Name and password are required");
 
-        User user = optionalUser.get();
+    Optional<User> optionalUser = userService.findByPhoneOrName(phoneOrName);
 
-        if (!userService.validatePassword(user, password))
-            return ResponseEntity.badRequest().body("Invalid credentials");
+    if (optionalUser.isEmpty())
+        return ResponseEntity.badRequest().body("Invalid credentials");
 
-        String token = jwtService.generateToken(
-                String.valueOf(user.getId()),
-                user.getRole().name()
-        );
+    User user = optionalUser.get();
 
-        return ResponseEntity.ok(Map.of(
-                "id", user.getId(),
-                "name", user.getName(),
-                "email", user.getEmail(),
-                "role", user.getRole().toString(),
-                "token", token
-        ));
-    }
+    if (!userService.validatePassword(user, password))
+        return ResponseEntity.badRequest().body("Invalid credentials");
+
+    String token = jwtService.generateToken(
+            String.valueOf(user.getId()),
+            user.getRole().name()
+    );
+
+    return ResponseEntity.ok(Map.of(
+            "id", user.getId(),
+            "name", user.getName(),
+            "phone", user.getPhone(),
+            "role", user.getRole().name(),
+            "token", token
+    ));
+}
+
 
     // ===================== FORGOT PASSWORD =====================
 
@@ -138,3 +143,4 @@ public class AuthController {
         return ResponseEntity.ok("Password reset successfully");
     }
 }
+
