@@ -44,21 +44,17 @@ public class UserService {
 
     // ==================== LOGIN SUPPORT ====================
     public Optional<User> findByLoginId(String loginId) {
-        // Try email first
         Optional<User> byEmail = userRepository.findByEmail(loginId);
         if (byEmail.isPresent()) return byEmail;
 
-        // Then phone
         Optional<User> byPhone = userRepository.findByPhone(loginId);
         if (byPhone.isPresent()) return byPhone;
 
-        // Then name
         return userRepository.findByName(loginId);
     }
 
     // ==================== REGISTER ====================
     public User registerCustomer(User user) {
-        // Encode password
         if (user.getPasswordHash() != null) {
             user.setPasswordHash(passwordEncoder.encode(user.getPasswordHash()));
         }
@@ -68,57 +64,32 @@ public class UserService {
 
     // ==================== PASSWORD VALIDATION ====================
     public boolean validatePassword(User user, String rawPassword) {
-        if (user.getPasswordHash() == null) return false; // Avoid NPE
-        return passwordEncoder.matches(rawPassword, user.getPasswordHash());
+        return user.getPasswordHash() != null &&
+               passwordEncoder.matches(rawPassword, user.getPasswordHash());
     }
 
-    // ==================== PASSWORD RESET TOKEN ====================
-    public void createPasswordResetTokenForUser(User user, String appUrl) {
-        String token = UUID.randomUUID().toString();
-        PasswordResetToken prt = PasswordResetToken.builder()
-                .token(token)
-                .user(user)
-                .expiryDate(LocalDateTime.now().plusHours(2))
-                .build();
-        tokenRepository.findByUser(user).ifPresent(tokenRepository::delete);
-        tokenRepository.save(prt);
+    // ==================== CHANGE PASSWORD (LOGGED IN) ====================
+    public void changePassword(Long userId, String oldPassword, String newPassword) {
 
-        String resetUrl = appUrl + "/api/users/resetPassword?token=" + token;
-        String body = "To reset your password click the link below:\n"
-                + resetUrl
-                + "\nThis link expires in 2 hours.";
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        if (user.getEmail() != null) {
-            emailService.sendSimpleMessage(user.getEmail(), "Password Reset Request", body);
+        if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
+            throw new RuntimeException("Old password is incorrect");
         }
+
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 
-    public Optional<User> validatePasswordResetToken(String token) {
-        return tokenRepository.findByToken(token)
-                .filter(t -> t.getExpiryDate().isAfter(LocalDateTime.now()))
-                .map(PasswordResetToken::getUser);
+    // ==================== CHANGE PASSWORD (FORGOT PASSWORD / OTP) ====================
+    public void changeUserPassword(User user, String newPassword) {
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        tokenRepository.findByUser(user).ifPresent(tokenRepository::delete);
     }
 
-    // ==================== CHANGE USER PASSWORD ====================
-   public void changePassword(Long userId, String oldPassword, String newPassword) {
-
-    User user = userRepository.findById(userId)
-            .orElseThrow(() -> new RuntimeException("User not found"));
-
-    if (user.getPasswordHash() == null) {
-        throw new RuntimeException("Password not set");
-    }
-
-    if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
-        throw new RuntimeException("Old password is incorrect");
-    }
-
-    user.setPasswordHash(passwordEncoder.encode(newPassword));
-    userRepository.save(user);
-}
-
-
-    // ==================== CRUD OPERATIONS ====================
+    // ==================== CRUD ====================
     public List<User> getAllUsers() {
         return userRepository.findAll();
     }
@@ -133,13 +104,15 @@ public class UserService {
         existing.setName(updatedUser.getName());
         existing.setPhone(updatedUser.getPhone());
         existing.setRole(updatedUser.getRole());
-        if (updatedUser.getEmail() != null) existing.setEmail(updatedUser.getEmail());
+        if (updatedUser.getEmail() != null) {
+            existing.setEmail(updatedUser.getEmail());
+        }
         return userRepository.save(existing);
     }
 
     public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) throw new RuntimeException("User not found");
+        if (!userRepository.existsById(id))
+            throw new RuntimeException("User not found");
         userRepository.deleteById(id);
     }
 }
-
