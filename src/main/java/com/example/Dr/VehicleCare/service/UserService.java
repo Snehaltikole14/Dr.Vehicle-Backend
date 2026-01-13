@@ -100,11 +100,23 @@ public class UserService {
     }
 
     // ==================== CHANGE USER PASSWORD ====================
-    public void changeUserPassword(User user, String newPassword) {
-        user.setPasswordHash(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
-        tokenRepository.findByUser(user).ifPresent(tokenRepository::delete);
+   public void changePassword(Long userId, String oldPassword, String newPassword) {
+
+    User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+    if (user.getPasswordHash() == null) {
+        throw new RuntimeException("Password not set");
     }
+
+    if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
+        throw new RuntimeException("Old password is incorrect");
+    }
+
+    user.setPasswordHash(passwordEncoder.encode(newPassword));
+    userRepository.save(user);
+}
+
 
     // ==================== CRUD OPERATIONS ====================
     public List<User> getAllUsers() {
@@ -130,3 +142,4 @@ public class UserService {
         userRepository.deleteById(id);
     }
 }
+
