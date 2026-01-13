@@ -1,5 +1,6 @@
 package com.example.Dr.VehicleCare.controller;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -52,9 +53,7 @@ public class AuthController {
     @PostMapping("/signup/verify-otp")
     public ResponseEntity<?> verifySignupOtp(@Valid @RequestBody SignUpRequest request) {
 
-        boolean verified = otpService.verifyOtp(request.getPhone(), request.getOtp());
-
-        if (!verified) {
+        if (!otpService.verifyOtp(request.getPhone(), request.getOtp())) {
             return ResponseEntity.badRequest().body("Invalid or expired OTP");
         }
 
@@ -63,73 +62,53 @@ public class AuthController {
         user.setPhone(request.getPhone());
         user.setPasswordHash(request.getPassword());
 
-        // ✅ Always assign role (avoid NULL)
-        UserRole role = request.getRole() != null
-                ? UserRole.valueOf(request.getRole())
-                : UserRole.CUSTOMER;
-
-        user.setRole(role);
+        user.setRole(
+                request.getRole() != null
+                        ? UserRole.valueOf(request.getRole())
+                        : UserRole.CUSTOMER
+        );
 
         return ResponseEntity.ok(userService.registerCustomer(user));
     }
 
     // ===================== LOGIN =====================
-   @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
 
-        if (request == null ||
-            request.getIdentifier() == null ||
-            request.getPassword() == null) {
+        String identifier = request.get("identifier");
+        String password = request.get("password");
 
-            return ResponseEntity
-                    .status(HttpStatus.BAD_REQUEST)
-                    .body("Identifier and password are required");
+        if (identifier == null || password == null) {
+            return ResponseEntity.badRequest().body("Identifier and password are required");
         }
 
-        String identifier = request.getIdentifier().trim();
-        String password = request.getPassword();
-
-        Optional<User> userOptional;
-
-        // 🔍 login by email / phone / username
-        if (identifier.contains("@")) {
-            userOptional = userRepository.findByEmail(identifier);
-        } else if (identifier.matches("\\d+")) {
-            userOptional = userRepository.findByPhone(identifier);
-        } else {
-            userOptional = userRepository.findByName(identifier);
-        }
+        Optional<User> userOptional = userService.findByLoginId(identifier);
 
         if (userOptional.isEmpty()) {
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Invalid credentials");
+            return ResponseEntity.status(401).body("Invalid credentials");
         }
 
         User user = userOptional.get();
 
-        if (user.getPasswordHash() == null ||
-            !passwordEncoder.matches(password, user.getPasswordHash())) {
-
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Invalid credentials");
+        if (!userService.validatePassword(user, password)) {
+            return ResponseEntity.status(401).body("Invalid credentials");
         }
 
-        String token = jwtService.generateToken(user);
+        String token = jwtService.generateToken(
+                String.valueOf(user.getId()),
+                user.getRole().name()
+        );
 
-        // ✅ NEVER USE Map.of() here
         Map<String, Object> response = new HashMap<>();
         response.put("token", token);
         response.put("id", user.getId());
         response.put("name", user.getName());
         response.put("email", user.getEmail());
         response.put("phone", user.getPhone());
-        response.put("role", user.getRole());
+        response.put("role", user.getRole().name());
 
         return ResponseEntity.ok(response);
     }
-}
 
     // ===================== FORGOT PASSWORD =====================
     @PostMapping("/forgot-password")
@@ -141,7 +120,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body("Phone number is required");
         }
 
-        User user = userService.findByPhone(phone)
+        userService.findByPhone(phone)
                 .orElseThrow(() -> new RuntimeException("Phone number not registered"));
 
         otpService.generateOtp(phone);
@@ -171,4 +150,3 @@ public class AuthController {
         return ResponseEntity.ok("Password reset successfully");
     }
 }
-
