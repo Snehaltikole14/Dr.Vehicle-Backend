@@ -74,47 +74,62 @@ public class AuthController {
     }
 
     // ===================== LOGIN =====================
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
+   @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
 
-        String loginId = request.get("emailOrName"); // email / phone / name
-        String password = request.get("password");
+        if (request == null ||
+            request.getIdentifier() == null ||
+            request.getPassword() == null) {
 
-        if (loginId == null || password == null) {
-            return ResponseEntity.badRequest().body("Login ID and password required");
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body("Identifier and password are required");
         }
 
-        Optional<User> optionalUser = userService.findByLoginId(loginId);
+        String identifier = request.getIdentifier().trim();
+        String password = request.getPassword();
 
-        if (optionalUser.isEmpty()) {
-            return ResponseEntity.badRequest().body("Invalid credentials");
+        Optional<User> userOptional;
+
+        // 🔍 login by email / phone / username
+        if (identifier.contains("@")) {
+            userOptional = userRepository.findByEmail(identifier);
+        } else if (identifier.matches("\\d+")) {
+            userOptional = userRepository.findByPhone(identifier);
+        } else {
+            userOptional = userRepository.findByName(identifier);
         }
 
-        User user = optionalUser.get();
-
-        if (!userService.validatePassword(user, password)) {
-            return ResponseEntity.badRequest().body("Invalid credentials");
+        if (userOptional.isEmpty()) {
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body("Invalid credentials");
         }
 
-        // ✅ SAFETY: role must NEVER be null
-        UserRole role = user.getRole() != null
-                ? user.getRole()
-                : UserRole.CUSTOMER;
+        User user = userOptional.get();
 
-        String token = jwtService.generateToken(
-                String.valueOf(user.getId()),
-                role.name()
-        );
+        if (user.getPasswordHash() == null ||
+            !passwordEncoder.matches(password, user.getPasswordHash())) {
 
-        return ResponseEntity.ok(Map.of(
-                "id", user.getId(),
-                "name", user.getName(),
-                "email", user.getEmail(),
-                "phone", user.getPhone(),
-                "role", role.name(),
-                "token", token
-        ));
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body("Invalid credentials");
+        }
+
+        String token = jwtService.generateToken(user);
+
+        // ✅ NEVER USE Map.of() here
+        Map<String, Object> response = new HashMap<>();
+        response.put("token", token);
+        response.put("id", user.getId());
+        response.put("name", user.getName());
+        response.put("email", user.getEmail());
+        response.put("phone", user.getPhone());
+        response.put("role", user.getRole());
+
+        return ResponseEntity.ok(response);
     }
+}
 
     // ===================== FORGOT PASSWORD =====================
     @PostMapping("/forgot-password")
@@ -156,3 +171,4 @@ public class AuthController {
         return ResponseEntity.ok("Password reset successfully");
     }
 }
+
