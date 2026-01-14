@@ -4,10 +4,10 @@ import com.example.Dr.VehicleCare.model.User;
 import com.example.Dr.VehicleCare.model.enums.UserRole;
 import com.example.Dr.VehicleCare.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 
 @Component
 @RequiredArgsConstructor
@@ -18,7 +18,6 @@ public class AdminInitializer {
 
     @EventListener(ApplicationReadyEvent.class)
     public void createAdmin() {
-
         try {
             if (userRepository.findByEmail("admin@example.com").isEmpty()) {
                 User admin = new User();
@@ -33,8 +32,7 @@ public class AdminInitializer {
                 System.out.println("⚠ Admin already exists");
             }
         } catch (Exception e) {
-            // VERY IMPORTANT: do not crash app if DB is late
-            System.err.println("⚠ Skipping admin creation (DB not ready yet)");
+            System.err.println("⚠ Database not ready yet, skipping admin creation");
         }
     }
 }
