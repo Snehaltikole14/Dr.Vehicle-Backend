@@ -3,29 +3,38 @@ package com.example.Dr.VehicleCare.config;
 import com.example.Dr.VehicleCare.model.User;
 import com.example.Dr.VehicleCare.model.enums.UserRole;
 import com.example.Dr.VehicleCare.repository.UserRepository;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 
-@Configuration
-public class AdminConfig {
+@Component
+@RequiredArgsConstructor
+public class AdminInitializer {
 
-    @Bean
-    CommandLineRunner createAdmin(UserRepository userRepository, PasswordEncoder passwordEncoder) {
-        return args -> {
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void createAdmin() {
+
+        try {
             if (userRepository.findByEmail("admin@example.com").isEmpty()) {
                 User admin = new User();
                 admin.setName("Super Admin");
                 admin.setEmail("admin@example.com");
-                admin.setPasswordHash(passwordEncoder.encode("Admin@123")); // strong password
+                admin.setPasswordHash(passwordEncoder.encode("Admin@123"));
                 admin.setRole(UserRole.ADMIN);
 
                 userRepository.save(admin);
-                System.out.println("✅ Admin user created: admin@example.com / Admin@123");
+                System.out.println("✅ Admin user created");
             } else {
                 System.out.println("⚠ Admin already exists");
             }
-        };
+        } catch (Exception e) {
+            // VERY IMPORTANT: do not crash app if DB is late
+            System.err.println("⚠ Skipping admin creation (DB not ready yet)");
+        }
     }
 }
