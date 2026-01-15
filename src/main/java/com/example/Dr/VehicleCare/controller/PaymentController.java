@@ -38,15 +38,13 @@ public class PaymentController {
     public ResponseEntity<?> createOrder(@RequestBody Map<String, Object> data) throws Exception {
 
         Long bookingId = Long.valueOf(data.get("bookingId").toString());
-        BigDecimal amount = new BigDecimal(data.get("amount").toString())
-                .multiply(BigDecimal.valueOf(100)); // ✅ convert to paise
+        BigDecimal amount = new BigDecimal(data.get("amount").toString()); // ✅ RUPEES ONLY
 
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
         Order order = paymentService.createOrder(booking, amount);
 
-        // ✅ RETURN JSON (NOT STRING)
         Map<String, Object> response = new HashMap<>();
         response.put("id", order.get("id"));
         response.put("amount", order.get("amount"));
@@ -61,31 +59,24 @@ public class PaymentController {
             @RequestBody Map<String, String> request,
             @RequestHeader("Authorization") String authHeader
     ) {
+
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return ResponseEntity.status(401).body("Unauthorized");
         }
 
         String token = authHeader.substring(7);
-        jwtService.extractUserId(token); // just validate token
+        jwtService.extractUserId(token); // validate token
 
         Long bookingId = Long.parseLong(request.get("bookingId"));
+        String orderId = request.get("razorpay_order_id");
+        String paymentId = request.get("razorpay_payment_id");
+        String signature = request.get("razorpay_signature");
 
-        String razorpayOrderId = request.get("razorpay_order_id");
-        String razorpayPaymentId = request.get("razorpay_payment_id");
-        String razorpaySignature = request.get("razorpay_signature");
+        boolean verified = paymentService.verifyPayment(orderId, paymentId, signature);
 
-        // ✅ VERIFY SIGNATURE
-        paymentService.verifySignature(
-                razorpayOrderId,
-                razorpayPaymentId,
-                razorpaySignature
-        );
-
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found"));
-
-        booking.setPaymentStatus(PaymentStatus.PAID);
-        bookingRepository.save(booking);
+        if (!verified) {
+            return ResponseEntity.badRequest().body("Payment verification failed");
+        }
 
         return ResponseEntity.ok("Payment verified successfully");
     }
