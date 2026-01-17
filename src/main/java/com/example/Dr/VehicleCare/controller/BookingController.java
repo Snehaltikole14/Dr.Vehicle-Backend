@@ -30,7 +30,8 @@ import com.example.Dr.VehicleCare.service.EmailService;
 
 @RestController
 @RequestMapping("/api/bookings")
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
+@CrossOrigin(origins = {"http://localhost:3000", "https://www.drvehiclecare.com"}, allowCredentials = "true")
+
 public class BookingController {
 
     private final BookingRepository bookingRepository;
@@ -163,3 +164,4 @@ public class BookingController {
         return ResponseEntity.ok("Booking deleted successfully");
     }
 }
+
