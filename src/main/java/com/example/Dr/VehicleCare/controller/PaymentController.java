@@ -33,54 +33,54 @@ public class PaymentController {
         this.jwtService = jwtService;
     }
 
-    // ✅ CREATE RAZORPAY ORDER
+    /* ================= CREATE ORDER ================= */
     @PostMapping("/create-order")
-    public ResponseEntity<?> createOrder(@RequestBody Map<String, Object> data) {
-
+    public ResponseEntity<?> createOrder(
+            @RequestBody Map<String, Object> data,
+            @RequestHeader("Authorization") String authHeader
+    ) {
         try {
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+            }
+
+            String token = authHeader.substring(7);
+            jwtService.extractUserId(token);
+
             Long bookingId = Long.valueOf(data.get("bookingId").toString());
-            BigDecimal amount = new BigDecimal(data.get("amount").toString()); // RUPEES ONLY
+            BigDecimal amount = new BigDecimal(data.get("amount").toString());
 
             Booking booking = bookingRepository.findById(bookingId)
                     .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-            // Razorpay API may throw RazorpayException
             Order order = paymentService.createOrder(booking, amount);
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("id", order.get("id"));
-            response.put("amount", order.get("amount"));
-            response.put("currency", order.get("currency"));
+            return ResponseEntity.ok(Map.of(
+                    "orderId", order.get("id"),
+                    "amount", order.get("amount"),
+                    "currency", order.get("currency")
+            ));
 
-            return ResponseEntity.ok(response);
-
-        } catch (RazorpayException e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(
-                    Map.of("error", "Failed to create payment order", "message", e.getMessage())
-            );
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(500).body(
-                    Map.of("error", "Internal server error", "message", e.getMessage())
-            );
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", "Failed to create order", "message", e.getMessage()));
         }
     }
 
-    // ✅ VERIFY PAYMENT
+    /* ================= VERIFY PAYMENT ================= */
     @PostMapping("/verify")
     public ResponseEntity<?> verifyPayment(
             @RequestBody Map<String, String> request,
             @RequestHeader("Authorization") String authHeader
     ) {
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
-        }
-
         try {
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+            }
+
             String token = authHeader.substring(7);
-            jwtService.extractUserId(token); // validate token
+            jwtService.extractUserId(token);
 
             Long bookingId = Long.parseLong(request.get("bookingId"));
             String orderId = request.get("razorpay_order_id");
@@ -88,22 +88,22 @@ public class PaymentController {
             String signature = request.get("razorpay_signature");
 
             boolean verified = paymentService.verifyPayment(orderId, paymentId, signature);
-
             if (!verified) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("error", "Payment verification failed"));
+                return ResponseEntity.badRequest().body(Map.of("error", "Payment verification failed"));
             }
 
-            return ResponseEntity.ok(Map.of("message", "Payment verified successfully"));
+            Booking booking = bookingRepository.findById(bookingId)
+                    .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        } catch (RazorpayException e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500)
-                    .body(Map.of("error", "Payment verification failed", "message", e.getMessage()));
+            booking.setPaymentStatus("PAID");
+            bookingRepository.save(booking);
+
+            return ResponseEntity.ok(Map.of("message", "Payment successful"));
+
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500)
-                    .body(Map.of("error", "Internal server error", "message", e.getMessage()));
+                    .body(Map.of("error", "Verification failed", "message", e.getMessage()));
         }
     }
 }
