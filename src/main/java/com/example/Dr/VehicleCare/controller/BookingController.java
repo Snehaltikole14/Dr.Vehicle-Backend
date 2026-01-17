@@ -1,5 +1,6 @@
 package com.example.Dr.VehicleCare.controller;
 
+import java.security.Principal;
 import java.time.LocalDate;
 
 import org.springframework.http.ResponseEntity;
@@ -13,18 +14,16 @@ import com.example.Dr.VehicleCare.model.User;
 import com.example.Dr.VehicleCare.model.enums.BookingStatus;
 import com.example.Dr.VehicleCare.model.enums.PaymentStatus;
 import com.example.Dr.VehicleCare.model.enums.ServiceType;
-import com.example.Dr.VehicleCare.repository.*;
+import com.example.Dr.VehicleCare.repository.BikeCompanyRepository;
+import com.example.Dr.VehicleCare.repository.BikeModelRepository;
+import com.example.Dr.VehicleCare.repository.BookingRepository;
+import com.example.Dr.VehicleCare.repository.CustomizedServiceRepository;
+import com.example.Dr.VehicleCare.repository.UserRepository;
 import com.example.Dr.VehicleCare.service.EmailService;
-import com.example.Dr.VehicleCare.service.JwtService;
 
 @RestController
 @RequestMapping("/api/bookings")
-@CrossOrigin(
-    origins = {
-        "http://localhost:3000",
-        "https://www.drvehiclecare.com"
-    }
-)
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class BookingController {
 
     private final BookingRepository bookingRepository;
@@ -33,7 +32,6 @@ public class BookingController {
     private final BikeModelRepository bikeModelRepository;
     private final CustomizedServiceRepository customizedServiceRepository;
     private final EmailService emailService;
-    private final JwtService jwtService;
 
     public BookingController(
             BookingRepository bookingRepository,
@@ -41,8 +39,7 @@ public class BookingController {
             BikeCompanyRepository bikeCompanyRepository,
             BikeModelRepository bikeModelRepository,
             CustomizedServiceRepository customizedServiceRepository,
-            EmailService emailService,
-            JwtService jwtService
+            EmailService emailService
     ) {
         this.bookingRepository = bookingRepository;
         this.userRepository = userRepository;
@@ -50,102 +47,107 @@ public class BookingController {
         this.bikeModelRepository = bikeModelRepository;
         this.customizedServiceRepository = customizedServiceRepository;
         this.emailService = emailService;
-        this.jwtService = jwtService;
     }
 
     // ================= CREATE BOOKING =================
     @PostMapping
-    public ResponseEntity<?> createBooking(
-            @RequestBody BookingRequest req,
-            @RequestHeader(value = "Authorization", required = false) String authHeader
-    ) {
-        try {
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(401).body("Unauthorized");
-            }
+    public ResponseEntity<?> createBooking(@RequestBody BookingRequest req, Principal principal) {
 
-            String token = authHeader.substring(7);
-            Long userId = jwtService.extractUserId(token);
-
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
-            Booking booking = new Booking();
-
-            booking.setUser(user);
-            booking.setBikeCompany(
-                    bikeCompanyRepository.findById(req.getBikeCompanyId()).orElse(null)
-            );
-            booking.setBikeModel(
-                    bikeModelRepository.findById(req.getBikeModelId()).orElse(null)
-            );
-            booking.setServiceType(ServiceType.valueOf(req.getServiceType()));
-            booking.setAppointmentDate(LocalDate.parse(req.getAppointmentDate()));
-            booking.setFullAddress(req.getFullAddress());
-            booking.setCity(req.getCity());
-            booking.setPincode(req.getPincode());
-            booking.setLandmark(req.getLandmark());
-            booking.setTimeSlot(req.getTimeSlot());
-            booking.setLatitude(req.getLatitude());
-            booking.setLongitude(req.getLongitude());
-            booking.setNotes(req.getNotes());
-            booking.setStatus(BookingStatus.PENDING);
-            booking.setPaymentStatus(PaymentStatus.UNPAID);
-
-            // ========= CUSTOMIZED SERVICE =========
-            if ("CUSTOMIZED".equalsIgnoreCase(req.getServiceType())
-                    && req.getCustomizedService() != null) {
-
-                CustomizedServiceDTO dto = req.getCustomizedService();
-                CustomizedServiceRequest csr = new CustomizedServiceRequest();
-
-                csr.setUserId(userId);
-                csr.setBikeCompany(dto.getBikeCompany());
-                csr.setBikeModel(dto.getBikeModel());
-                csr.setCc(dto.getCc());
-                csr.setWash(dto.isWash());
-                csr.setOilChange(dto.isOilChange());
-                csr.setChainLube(dto.isChainLube());
-                csr.setEngineTuneUp(dto.isEngineTuneUp());
-                csr.setBreakCheck(dto.isBreakCheck());
-                csr.setFullbodyPolishing(dto.isFullbodyPolishing());
-                csr.setGeneralInspection(dto.isGeneralInspection());
-                csr.setTotalPrice(dto.getTotalPrice());
-
-                customizedServiceRepository.save(csr);
-
-                booking.setCustomizedService(csr);
-                booking.setServicePrice(dto.getTotalPrice());
-            } else {
-                booking.setServicePrice(req.getServicePrice());
-            }
-
-            Booking savedBooking = bookingRepository.save(booking);
-
-            emailService.notifyAdminBooking(
-                    "New booking from " + user.getName() + " (" + user.getPhone() + ")"
-            );
-
-            return ResponseEntity.ok(savedBooking);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body("Failed to create booking");
+        if (principal == null) {
+            return ResponseEntity.status(401).body("Unauthorized");
         }
+
+        // ✅ Convert principal name to Long
+        Long userId = Long.parseLong(principal.getName());
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Booking booking = new Booking();
+
+        // Set base data
+        booking.setUser(user);
+
+        // ✅ Parse BikeCompany and BikeModel IDs
+        booking.setBikeCompany(
+                bikeCompanyRepository.findById(Long.parseLong(req.getBikeCompanyId())).orElse(null)
+        );
+        booking.setBikeModel(
+                bikeModelRepository.findById(Long.parseLong(req.getBikeModelId())).orElse(null)
+        );
+
+        booking.setServiceType(ServiceType.valueOf(req.getServiceType()));
+        booking.setAppointmentDate(LocalDate.parse(req.getAppointmentDate()));
+        booking.setFullAddress(req.getFullAddress());
+        booking.setCity(req.getCity());
+        booking.setPincode(req.getPincode());
+        booking.setLandmark(req.getLandmark());
+        booking.setTimeSlot(req.getTimeSlot());
+        booking.setLatitude(req.getLatitude());
+        booking.setLongitude(req.getLongitude());
+        booking.setNotes(req.getNotes());
+        booking.setStatus(BookingStatus.PENDING);
+
+        // ===================== CUSTOMIZED SERVICE LOGIC =====================
+        if (req.getServiceType().equalsIgnoreCase("CUSTOMIZED") &&
+                req.getCustomizedService() != null) {
+
+            CustomizedServiceDTO dto = req.getCustomizedService();
+
+            CustomizedServiceRequest csr = new CustomizedServiceRequest();
+
+            // ✅ Convert userId for CSR
+            csr.setUserId(userId);
+
+            // Parse bike company/model IDs if they are Strings
+            if (dto.getBikeCompany() != null) {
+                csr.setBikeCompany(Long.parseLong(dto.getBikeCompany()));
+            }
+            if (dto.getBikeModel() != null) {
+                csr.setBikeModel(Long.parseLong(dto.getBikeModel()));
+            }
+
+            csr.setCc(dto.getCc());
+            csr.setWash(dto.isWash());
+            csr.setOilChange(dto.isOilChange());
+            csr.setChainLube(dto.isChainLube());
+            csr.setEngineTuneUp(dto.isEngineTuneUp());
+            csr.setBreakCheck(dto.isBreakCheck());
+            csr.setFullbodyPolishing(dto.isFullbodyPolishing());
+            csr.setGeneralInspection(dto.isGeneralInspection());
+            csr.setTotalPrice(dto.getTotalPrice());
+
+            customizedServiceRepository.save(csr);
+            booking.setCustomizedService(csr);
+
+            // Set total price in booking
+            booking.setServicePrice(dto.getTotalPrice());
+        } else {
+            // For normal services, get price from request
+            booking.setServicePrice(req.getServicePrice());
+        }
+
+        // Payment status initially UNPAID
+        booking.setPaymentStatus(PaymentStatus.UNPAID);
+
+        // SAVE BOOKING
+        Booking savedBooking = bookingRepository.save(booking);
+
+        // Notify admin
+        emailService.notifyAdminBooking(
+                "New booking: " + user.getName() + " (" + user.getPhone() + ")"
+        );
+
+        return ResponseEntity.ok(savedBooking);
     }
 
     // ================= GET MY BOOKINGS =================
     @GetMapping("/my")
-    public ResponseEntity<?> myBookings(
-            @RequestHeader(value = "Authorization", required = false) String authHeader
-    ) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+    public ResponseEntity<?> myBookings(Principal principal) {
+        if (principal == null) {
             return ResponseEntity.status(401).body("Unauthorized");
         }
-
-        String token = authHeader.substring(7);
-        Long userId = jwtService.extractUserId(token);
-
+        Long userId = Long.parseLong(principal.getName());
         return ResponseEntity.ok(bookingRepository.findByUserId(userId));
     }
 
@@ -167,4 +169,3 @@ public class BookingController {
         return ResponseEntity.ok("Booking deleted successfully");
     }
 }
-
