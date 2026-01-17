@@ -4,14 +4,7 @@ import java.security.Principal;
 import java.time.LocalDate;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.example.Dr.VehicleCare.dto.BookingRequest;
 import com.example.Dr.VehicleCare.dto.CustomizedServiceDTO;
@@ -21,17 +14,13 @@ import com.example.Dr.VehicleCare.model.User;
 import com.example.Dr.VehicleCare.model.enums.BookingStatus;
 import com.example.Dr.VehicleCare.model.enums.PaymentStatus;
 import com.example.Dr.VehicleCare.model.enums.ServiceType;
-import com.example.Dr.VehicleCare.repository.BikeCompanyRepository;
-import com.example.Dr.VehicleCare.repository.BikeModelRepository;
-import com.example.Dr.VehicleCare.repository.BookingRepository;
-import com.example.Dr.VehicleCare.repository.CustomizedServiceRepository;
-import com.example.Dr.VehicleCare.repository.UserRepository;
+import com.example.Dr.VehicleCare.repository.*;
+
 import com.example.Dr.VehicleCare.service.EmailService;
 
 @RestController
 @RequestMapping("/api/bookings")
-@CrossOrigin(origins = {"http://localhost:3000", "https://www.drvehiclecare.com"}, allowCredentials = "true")
-
+@CrossOrigin(origins = "*", allowCredentials = "true")
 public class BookingController {
 
     private final BookingRepository bookingRepository;
@@ -61,17 +50,25 @@ public class BookingController {
     @PostMapping
     public ResponseEntity<?> createBooking(@RequestBody BookingRequest req, Principal principal) {
 
-        if (principal == null) {
+        if (principal == null || principal.getName() == null) {
             return ResponseEntity.status(401).body("Unauthorized");
         }
 
-        Long userId = Long.parseLong(principal.getName());
+        Long userId;
+        try {
+            userId = Long.parseLong(principal.getName());
+        } catch (NumberFormatException e) {
+            return ResponseEntity.status(400).body("Invalid user ID");
+        }
+
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(404).body("User not found");
+        }
 
         Booking booking = new Booking();
-
-        // Set base data
         booking.setUser(user);
         booking.setBikeCompany(
                 bikeCompanyRepository.findById(req.getBikeCompanyId()).orElse(null)
@@ -79,7 +76,14 @@ public class BookingController {
         booking.setBikeModel(
                 bikeModelRepository.findById(req.getBikeModelId()).orElse(null)
         );
-        booking.setServiceType(ServiceType.valueOf(req.getServiceType()));
+
+        // Validate service type
+        try {
+            booking.setServiceType(ServiceType.valueOf(req.getServiceType()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Invalid service type");
+        }
+
         booking.setAppointmentDate(LocalDate.parse(req.getAppointmentDate()));
         booking.setFullAddress(req.getFullAddress());
         booking.setCity(req.getCity());
@@ -91,15 +95,14 @@ public class BookingController {
         booking.setNotes(req.getNotes());
         booking.setStatus(BookingStatus.PENDING);
 
-        // ===================== CUSTOMIZED SERVICE LOGIC =====================
-        if (req.getServiceType().equalsIgnoreCase("CUSTOMIZED") &&
+        // ===================== CUSTOMIZED SERVICE =====================
+        if ("CUSTOMIZED".equalsIgnoreCase(req.getServiceType()) &&
                 req.getCustomizedService() != null) {
 
             CustomizedServiceDTO dto = req.getCustomizedService();
 
             CustomizedServiceRequest csr = new CustomizedServiceRequest();
             csr.setUserId(userId);
-
             csr.setBikeCompany(dto.getBikeCompany());
             csr.setBikeModel(dto.getBikeModel());
             csr.setCc(dto.getCc());
@@ -114,18 +117,13 @@ public class BookingController {
 
             customizedServiceRepository.save(csr);
             booking.setCustomizedService(csr);
-
-            // Set total price in booking
             booking.setServicePrice(dto.getTotalPrice());
         } else {
-            // For normal services, get price from request
             booking.setServicePrice(req.getServicePrice());
         }
 
-        // Payment status initially UNPAID
         booking.setPaymentStatus(PaymentStatus.UNPAID);
 
-        // SAVE BOOKING
         Booking savedBooking = bookingRepository.save(booking);
 
         // Notify admin
@@ -139,29 +137,38 @@ public class BookingController {
     // ================= GET MY BOOKINGS =================
     @GetMapping("/my")
     public ResponseEntity<?> myBookings(Principal principal) {
-        if (principal == null) {
+        if (principal == null || principal.getName() == null) {
             return ResponseEntity.status(401).body("Unauthorized");
         }
-        Long userId = Long.parseLong(principal.getName());
+
+        Long userId;
+        try {
+            userId = Long.parseLong(principal.getName());
+        } catch (NumberFormatException e) {
+            return ResponseEntity.status(400).body("Invalid user ID");
+        }
+
         return ResponseEntity.ok(bookingRepository.findByUserId(userId));
     }
 
     // ================= GET BOOKING BY ID =================
     @GetMapping("/{id}")
     public ResponseEntity<?> getBooking(@PathVariable Long id) {
+        if (id == null) {
+            return ResponseEntity.badRequest().body("Booking ID required");
+        }
         return bookingRepository.findById(id)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElse(ResponseEntity.status(404).body("Booking not found"));
     }
 
     // ================= DELETE BOOKING =================
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteBooking(@PathVariable Long id) {
-        if (!bookingRepository.existsById(id)) {
-            return ResponseEntity.notFound().build();
+        if (id == null || !bookingRepository.existsById(id)) {
+            return ResponseEntity.status(404).body("Booking not found");
         }
         bookingRepository.deleteById(id);
         return ResponseEntity.ok("Booking deleted successfully");
     }
 }
-
