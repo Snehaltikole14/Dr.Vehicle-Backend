@@ -15,7 +15,7 @@ import com.example.Dr.VehicleCare.model.enums.PaymentStatus;
 import com.example.Dr.VehicleCare.model.enums.ServiceType;
 import com.example.Dr.VehicleCare.repository.*;
 import com.example.Dr.VehicleCare.service.EmailService;
-import com.example.Dr.VehicleCare.security.JwtService;
+import com.example.Dr.VehicleCare.service.JwtService;
 
 @RestController
 @RequestMapping("/api/bookings")
@@ -167,3 +167,4 @@ public class BookingController {
         return ResponseEntity.ok("Booking deleted successfully");
     }
 }
+
