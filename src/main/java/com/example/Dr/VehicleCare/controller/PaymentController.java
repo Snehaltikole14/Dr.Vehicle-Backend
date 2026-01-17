@@ -11,6 +11,8 @@ import com.example.Dr.VehicleCare.model.Booking;
 import com.example.Dr.VehicleCare.repository.BookingRepository;
 import com.example.Dr.VehicleCare.service.JwtService;
 import com.example.Dr.VehicleCare.service.PaymentService;
+import com.example.Dr.VehicleCare.model.enums.PaymentStatus;
+
 import com.razorpay.Order;
 import com.razorpay.RazorpayException;
 
@@ -95,7 +97,8 @@ public class PaymentController {
             Booking booking = bookingRepository.findById(bookingId)
                     .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-            booking.setPaymentStatus("PAID");
+           booking.setPaymentStatus(PaymentStatus.PAID);
+
             bookingRepository.save(booking);
 
             return ResponseEntity.ok(Map.of("message", "Payment successful"));
