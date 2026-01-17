@@ -69,37 +69,34 @@ public class PaymentService {
 
     /* ================= VERIFY PAYMENT ================= */
     @Transactional
-    public boolean verifyPayment(
-            String orderId,
-            String paymentId,
-            String signature
-    ) throws RazorpayException {
+public boolean verifyPayment(String orderId, String paymentId, String signature)
+        throws RazorpayException {
 
-        Payment payment = paymentRepository.findByRazorpayOrderId(orderId)
-                .orElseThrow(() ->
-                        new RuntimeException("Payment not found for orderId: " + orderId)
-                );
+    Payment payment = paymentRepository.findByRazorpayOrderId(orderId)
+            .orElseThrow(() ->
+                    new RuntimeException("Payment not found for orderId: " + orderId)
+            );
 
-        String payload = orderId + "|" + paymentId;
-        boolean isValid = Utils.verifySignature(payload, signature, keySecret);
+    String payload = orderId + "|" + paymentId;
+    boolean isValid = Utils.verifySignature(payload, signature, keySecret);
 
-        if (!isValid) {
-            payment.setStatus(PaymentStatus.FAILED);
-            paymentRepository.save(payment);
-            return false;
-        }
-
-        // Update payment
-        payment.setStatus(PaymentStatus.PAID);
-        payment.setRazorpayPaymentId(paymentId);
-        payment.setRazorpaySignature(signature);
+    if (!isValid) {
+        payment.setStatus(PaymentStatus.FAILED);
         paymentRepository.save(payment);
-
-        // Update booking
-        Booking booking = payment.getBooking();
-        booking.setPaymentStatus(PaymentStatus.PAID);
-        bookingRepository.save(booking);
-
-        return true;
+        return false;
     }
+
+    payment.setStatus(PaymentStatus.PAID);
+    payment.setRazorpayPaymentId(paymentId);
+    payment.setRazorpaySignature(signature);
+    paymentRepository.save(payment);
+
+    Booking booking = payment.getBooking();
+    booking.setPaymentStatus(PaymentStatus.PAID);
+    bookingRepository.save(booking);
+
+    return true;
 }
+
+}
+
