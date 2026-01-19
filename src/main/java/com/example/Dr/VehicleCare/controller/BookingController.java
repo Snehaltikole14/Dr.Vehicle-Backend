@@ -152,15 +152,17 @@ public class BookingController {
     }
 
     // ================= GET BOOKING BY ID =================
-    @GetMapping("/{id}")
-    public ResponseEntity<?> getBooking(@PathVariable Long id) {
-        if (id == null) {
-            return ResponseEntity.badRequest().body("Booking ID required");
-        }
-        return bookingRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.status(404).body("Booking not found"));
+   @GetMapping("/{id}")
+public ResponseEntity<?> getBooking(@PathVariable Long id) {
+    if (id == null) {
+        return ResponseEntity.badRequest().body("Booking ID required");
     }
+
+    return bookingRepository.findById(id)
+            .map(booking -> ResponseEntity.ok(booking))
+            .orElseGet(() -> ResponseEntity.status(404).body("Booking not found"));
+}
+
 
     // ================= DELETE BOOKING =================
     @DeleteMapping("/{id}")
@@ -172,3 +174,4 @@ public class BookingController {
         return ResponseEntity.ok("Booking deleted successfully");
     }
 }
+
