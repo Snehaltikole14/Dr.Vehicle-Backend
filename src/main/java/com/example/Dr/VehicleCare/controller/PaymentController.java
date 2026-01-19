@@ -1,20 +1,17 @@
 package com.example.Dr.VehicleCare.controller;
 
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.example.Dr.VehicleCare.model.Booking;
+import com.example.Dr.VehicleCare.model.enums.PaymentStatus;
 import com.example.Dr.VehicleCare.repository.BookingRepository;
 import com.example.Dr.VehicleCare.service.JwtService;
 import com.example.Dr.VehicleCare.service.PaymentService;
-import com.example.Dr.VehicleCare.model.enums.PaymentStatus;
-
 import com.razorpay.Order;
-import com.razorpay.RazorpayException;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -42,14 +39,11 @@ public class PaymentController {
             @RequestHeader("Authorization") String authHeader
     ) {
         try {
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
-            }
-
-            String token = authHeader.substring(7);
-            jwtService.extractUserId(token);
+            validateToken(authHeader);
 
             Long bookingId = Long.valueOf(data.get("bookingId").toString());
+
+            // IMPORTANT: Amount must already be in paise
             BigDecimal amount = new BigDecimal(data.get("amount").toString());
 
             Booking booking = bookingRepository.findById(bookingId)
@@ -57,16 +51,19 @@ public class PaymentController {
 
             Order order = paymentService.createOrder(booking, amount);
 
+            // 🔥 RETURN EXACT FIELDS FRONTEND EXPECTS
             return ResponseEntity.ok(Map.of(
-                    "orderId", order.get("id"),
+                    "id", order.get("id"),
                     "amount", order.get("amount"),
                     "currency", order.get("currency")
             ));
 
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(500)
-                    .body(Map.of("error", "Failed to create order", "message", e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", "Failed to create order",
+                    "message", e.getMessage()
+            ));
         }
     }
 
@@ -77,14 +74,8 @@ public class PaymentController {
             @RequestHeader("Authorization") String authHeader
     ) {
         try {
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
-            }
+            validateToken(authHeader);
 
-            String token = authHeader.substring(7);
-            jwtService.extractUserId(token);
-
-            Long bookingId = Long.parseLong(request.get("bookingId"));
             String orderId = request.get("razorpay_order_id");
             String paymentId = request.get("razorpay_payment_id");
             String signature = request.get("razorpay_signature");
@@ -94,19 +85,28 @@ public class PaymentController {
                 return ResponseEntity.badRequest().body(Map.of("error", "Payment verification failed"));
             }
 
-            Booking booking = bookingRepository.findById(bookingId)
+            // 🔥 FIND BOOKING USING ORDER ID (BEST PRACTICE)
+            Booking booking = bookingRepository.findByRazorpayOrderId(orderId)
                     .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-           booking.setPaymentStatus(PaymentStatus.PAID);
-
+            booking.setPaymentStatus(PaymentStatus.PAID);
             bookingRepository.save(booking);
 
             return ResponseEntity.ok(Map.of("message", "Payment successful"));
 
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(500)
-                    .body(Map.of("error", "Verification failed", "message", e.getMessage()));
+            return ResponseEntity.status(500).body(Map.of(
+                    "error", "Verification failed",
+                    "message", e.getMessage()
+            ));
         }
+    }
+
+    private void validateToken(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new RuntimeException("Unauthorized");
+        }
+        jwtService.extractUserId(authHeader.substring(7));
     }
 }
