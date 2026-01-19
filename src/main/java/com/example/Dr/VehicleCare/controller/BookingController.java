@@ -20,7 +20,8 @@ import com.example.Dr.VehicleCare.service.EmailService;
 
 @RestController
 @RequestMapping("/api/bookings")
-@CrossOrigin(origins = "*", allowCredentials = "true")
+@CrossOrigin(originPatterns = "*", allowCredentials = "true")
+
 public class BookingController {
 
     private final BookingRepository bookingRepository;
@@ -180,5 +181,6 @@ public ResponseEntity<Object> getBooking(@PathVariable Long id) {
         return ResponseEntity.ok("Booking deleted successfully");
     }
 }
+
 
 
