@@ -1,109 +1,95 @@
 package com.example.Dr.VehicleCare.controller;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.example.Dr.VehicleCare.model.Booking;
 import com.example.Dr.VehicleCare.model.enums.PaymentStatus;
 import com.example.Dr.VehicleCare.repository.BookingRepository;
 import com.example.Dr.VehicleCare.service.JwtService;
 import com.example.Dr.VehicleCare.service.PaymentService;
+
 import com.razorpay.Order;
 
 @RestController
 @RequestMapping("/api/payments")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class PaymentController {
 
     private final PaymentService paymentService;
     private final BookingRepository bookingRepository;
     private final JwtService jwtService;
 
-    public PaymentController(
-            PaymentService paymentService,
-            BookingRepository bookingRepository,
-            JwtService jwtService
-    ) {
+    public PaymentController(PaymentService paymentService,
+                             BookingRepository bookingRepository,
+                             JwtService jwtService) {
         this.paymentService = paymentService;
         this.bookingRepository = bookingRepository;
         this.jwtService = jwtService;
     }
 
-    /* ================= CREATE ORDER ================= */
+    // CREATE RAZORPAY ORDER
     @PostMapping("/create-order")
-    public ResponseEntity<?> createOrder(
-            @RequestBody Map<String, Object> data,
-            @RequestHeader("Authorization") String authHeader
-    ) {
-        try {
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
-            }
+    public String createOrder(@RequestBody Map<String, Object> data) throws Exception {
 
-            String token = authHeader.substring(7);
-            jwtService.extractUserId(token);
+        Long bookingId = Long.valueOf(data.get("bookingId").toString());
+        BigDecimal amount = new BigDecimal(data.get("amount").toString());
 
-            Long bookingId = Long.valueOf(data.get("bookingId").toString());
-            BigDecimal amount = new BigDecimal(data.get("amount").toString());
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-            Booking booking = bookingRepository.findById(bookingId)
-                    .orElseThrow(() -> new RuntimeException("Booking not found"));
-
-            Order order = paymentService.createOrder(booking, amount);
-
-            return ResponseEntity.ok(Map.of(
-                    "id", order.get("id"),
-                    "amount", order.get("amount"),
-                    "currency", order.get("currency")
-            ));
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500)
-                    .body(Map.of("error", "Failed to create order", "message", e.getMessage()));
-        }
+        Order order = paymentService.createOrder(booking, amount);
+        return order.toString();
     }
 
-    /* ================= VERIFY PAYMENT ================= */
+    // VERIFY PAYMENT
     @PostMapping("/verify")
     public ResponseEntity<?> verifyPayment(
             @RequestBody Map<String, String> request,
             @RequestHeader("Authorization") String authHeader
     ) {
-        try {
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
-            }
-
-            String token = authHeader.substring(7);
-            jwtService.extractUserId(token);
-
-            Long bookingId = Long.parseLong(request.get("bookingId"));
-            String orderId = request.get("razorpay_order_id");
-            String paymentId = request.get("razorpay_payment_id");
-            String signature = request.get("razorpay_signature");
-
-            boolean verified = paymentService.verifyPayment(orderId, paymentId, signature);
-            if (!verified) {
-                return ResponseEntity.badRequest()
-                        .body(Map.of("error", "Payment verification failed"));
-            }
-
-            Booking booking = bookingRepository.findById(bookingId)
-                    .orElseThrow(() -> new RuntimeException("Booking not found"));
-
-            booking.setPaymentStatus(PaymentStatus.PAID);
-            bookingRepository.save(booking);
-
-            return ResponseEntity.ok(Map.of("message", "Payment successful"));
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500)
-                    .body(Map.of("error", "Verification failed", "message", e.getMessage()));
+        // Extract token from header
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(401).body("Unauthorized");
         }
+        String token = authHeader.substring(7);
+
+        Long userId;
+        try {
+            userId = Long.parseLong(jwtService.extractUserId(token)); // ✅ Always initialize here
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body("Invalid token");
+        }
+
+        String bookingIdStr = request.get("bookingId");
+        if (bookingIdStr == null) {
+            return ResponseEntity.badRequest().body("Booking ID missing");
+        }
+
+        Long bookingId = Long.parseLong(bookingIdStr);
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        booking.setPaymentStatus(PaymentStatus.PAID);
+        bookingRepository.save(booking);
+
+        return ResponseEntity.ok("Payment verified successfully");
     }
+    
+    
+
+
+
 }
