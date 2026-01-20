@@ -5,7 +5,6 @@ import java.math.BigDecimal;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.example.Dr.VehicleCare.model.Booking;
 import com.example.Dr.VehicleCare.model.Payment;
@@ -30,73 +29,75 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final BookingRepository bookingRepository;
 
-    public PaymentService(
-            PaymentRepository paymentRepository,
-            BookingRepository bookingRepository
-    ) {
+    public PaymentService(PaymentRepository paymentRepository, BookingRepository bookingRepository) {
         this.paymentRepository = paymentRepository;
         this.bookingRepository = bookingRepository;
     }
 
-    /* ================= CREATE ORDER ================= */
-    @Transactional
+    // ================= CREATE ORDER =================
     public Order createOrder(Booking booking, BigDecimal amount) throws RazorpayException {
 
         RazorpayClient client = new RazorpayClient(keyId, keySecret);
 
         JSONObject options = new JSONObject();
-        options.put("amount", amount.multiply(BigDecimal.valueOf(100)).intValue()); // paise
+        options.put("amount", amount.multiply(BigDecimal.valueOf(100))); // convert to paise
         options.put("currency", "INR");
         options.put("receipt", "booking_" + booking.getId());
 
         Order order = client.orders.create(options);
 
-        // Save payment entry
+        // Save payment record
         Payment payment = new Payment();
         payment.setBooking(booking);
         payment.setAmount(amount);
         payment.setMethod(PaymentMethod.UPI);
         payment.setRazorpayOrderId(order.get("id"));
-        payment.setStatus(PaymentStatus.UNPAID);
+        payment.setStatus(PaymentStatus.UNPAID); // default
         paymentRepository.save(payment);
 
-        // Ensure booking is marked UNPAID
+        // Make sure booking initially marked UNPAID
         booking.setPaymentStatus(PaymentStatus.UNPAID);
         bookingRepository.save(booking);
 
         return order;
     }
 
-    /* ================= VERIFY PAYMENT ================= */
-    @Transactional
-public boolean verifyPayment(String orderId, String paymentId, String signature)
-        throws RazorpayException {
+    // ================= VERIFY PAYMENT =================
+    public boolean verifyPayment(
+            String orderId,
+            String paymentId,
+            String signature) throws RazorpayException {
 
-    Payment payment = paymentRepository.findByRazorpayOrderId(orderId)
-            .orElseThrow(() ->
-                    new RuntimeException("Payment not found for orderId: " + orderId)
-            );
+        Payment payment = paymentRepository.findByRazorpayOrderId(orderId);
 
-    String payload = orderId + "|" + paymentId;
-    boolean isValid = Utils.verifySignature(payload, signature, keySecret);
+        if (payment == null) {
+            throw new RuntimeException("Payment record not found for orderId: " + orderId);
+        }
 
-    if (!isValid) {
+        String payload = orderId + "|" + paymentId;
+
+        boolean isValid = Utils.verifySignature(payload, signature, keySecret);
+
+        if (isValid) {
+            // Update payment
+            payment.setStatus(PaymentStatus.PAID);
+            payment.setRazorpayPaymentId(paymentId);
+            payment.setRazorpaySignature(signature);
+            paymentRepository.save(payment);
+
+            // Update booking as well
+            Booking booking = payment.getBooking();
+            booking.setPaymentStatus(PaymentStatus.PAID);
+            bookingRepository.save(booking);
+
+            return true;
+        }
+
+        // If verification fails
         payment.setStatus(PaymentStatus.FAILED);
         paymentRepository.save(payment);
+
+        // Booking remains UNPAID if verification fails
         return false;
     }
-
-    payment.setStatus(PaymentStatus.PAID);
-    payment.setRazorpayPaymentId(paymentId);
-    payment.setRazorpaySignature(signature);
-    paymentRepository.save(payment);
-
-    Booking booking = payment.getBooking();
-    booking.setPaymentStatus(PaymentStatus.PAID);
-    bookingRepository.save(booking);
-
-    return true;
 }
-
-}
-
