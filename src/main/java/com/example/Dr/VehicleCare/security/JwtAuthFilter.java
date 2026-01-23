@@ -31,25 +31,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String path = request.getRequestURI();
-        String method = request.getMethod();
 
-        // Allow CORS preflight
-        if ("OPTIONS".equalsIgnoreCase(method)) {
-            response.setStatus(HttpServletResponse.SC_OK);
+        // Allow preflight requests
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
             return;
         }
 
-        // Public endpoints
-        if (path.startsWith("/auth/")
-                || path.startsWith("/uploads/")
-                || path.startsWith("/api/bikes")
-                || path.startsWith("/api/payments")
-                || path.startsWith("/api/services")
-                || path.startsWith("/api/users")
-                || path.startsWith("/api/chat")
-                || path.startsWith("/api/admin/bookings")
-                || path.startsWith("/api/customized")
-                || path.startsWith("/api/bikes/companies")) {
+        // Allow auth endpoints without JWT
+        if (path.startsWith("/auth/")) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -58,7 +48,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Authorization header missing");
             return;
         }
 
@@ -66,13 +55,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (!jwtProvider.validateToken(token)) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Invalid or expired JWT token");
             return;
         }
 
         Claims claims = jwtProvider.getClaims(token);
         String userId = claims.getSubject();
-        String role = claims.get("role", String.class);
+        String role = claims.get("role", String.class).toUpperCase();
 
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
@@ -86,3 +74,5 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 }
+
+
