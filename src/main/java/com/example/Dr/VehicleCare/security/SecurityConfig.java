@@ -49,8 +49,8 @@ public class SecurityConfig {
 
                 // Authenticated endpoints
                 .requestMatchers("/api/customized/user/**").hasRole("USER")
-             .requestMatchers("/api/bookings/**").hasAnyRole("CUSTOMER", "ADMIN")
-
+                .requestMatchers(HttpMethod.POST, "/api/bookings").hasAnyRole("CUSTOMER", "ADMIN")
+                .requestMatchers("/api/bookings/**").authenticated()
 
                 // Admin-only endpoints
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -88,8 +88,6 @@ public class SecurityConfig {
         return source;
     }
 }
-
-
 
 
 
