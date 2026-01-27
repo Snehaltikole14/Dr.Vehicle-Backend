@@ -28,47 +28,48 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+@Bean
+public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
-   @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    http
+        .csrf(csrf -> csrf.disable())
+        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+        .sessionManagement(sess ->
+            sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        )
+        .authorizeHttpRequests(auth -> auth
 
-        http
-            .csrf(csrf -> csrf.disable()) // disable CSRF for API
-            .cors(cors -> cors.configurationSource(corsConfigurationSource())) // CORS
-            .authorizeHttpRequests(auth -> auth
-                // Public endpoints
-                .requestMatchers("/auth/**").permitAll()
-                .requestMatchers("/uploads/**").permitAll()
-                .requestMatchers("/api/bikes/**").permitAll()
-                .requestMatchers("/api/payments/**").permitAll()
-                .requestMatchers("/api/admin/**").permitAll()
-                .requestMatchers("/api/users/**").permitAll()
-                .requestMatchers("/api/services/**").permitAll()
-                .requestMatchers("/api/chat/**").permitAll()
-                .requestMatchers("/api/customized/**").permitAll()
+            // ✅ VERY IMPORTANT: allow OPTIONS (CORS preflight)
+            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // Authenticated endpoints
-                .requestMatchers("/api/customized/user/**").hasRole("USER")
-                .requestMatchers(HttpMethod.POST, "/api/bookings").hasAnyRole("CUSTOMER", "ADMIN")
-                .requestMatchers("/api/bookings/**").authenticated()
+            // ✅ Public APIs
+            .requestMatchers("/auth/**").permitAll()
+            .requestMatchers("/uploads/**").permitAll()
+            .requestMatchers("/api/bikes/**").permitAll()
+            .requestMatchers("/api/services/**").permitAll()
+            .requestMatchers("/api/chat/**").permitAll()
 
-                // Admin-only endpoints
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+            // ✅ Razorpay / payment callbacks
+            .requestMatchers("/api/payments/**").permitAll()
 
-                // Provider-only endpoints
-                .requestMatchers("/api/provider/**").hasRole("PROVIDER")
+            // ✅ Booking APIs (JWT required)
+            .requestMatchers("/api/bookings/**").authenticated()
 
-                // All other endpoints require authentication
-                .anyRequest().authenticated()
-            )
-            // Stateless session (JWT)
-            .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+            // ✅ Admin only
+            .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-        // Add JWT filter before UsernamePasswordAuthenticationFilter
-        http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+            // ✅ Provider only
+            .requestMatchers("/api/provider/**").hasRole("PROVIDER")
 
-        return http.build();
-    }
+            // ❌ everything else blocked
+            .anyRequest().authenticated()
+        );
+
+    http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+    return http.build();
+}
+
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -88,6 +89,7 @@ public class SecurityConfig {
         return source;
     }
 }
+
 
 
 
