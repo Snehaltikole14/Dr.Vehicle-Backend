@@ -31,48 +31,62 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String path = request.getRequestURI();
+        String method = request.getMethod();
 
-        // Allow preflight requests
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+        // ✅ Allow CORS preflight
+        if ("OPTIONS".equalsIgnoreCase(method)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Allow auth endpoints without JWT
-        if (path.startsWith("/auth/")) {
+        // ✅ Public endpoints (MUST MATCH SecurityConfig)
+        if (path.startsWith("/auth/")
+            || path.startsWith("/api/bikes/")
+            || path.startsWith("/api/services/")
+            || path.startsWith("/api/payments/")
+            || path.startsWith("/uploads/")) {
+
             filterChain.doFilter(request, response);
             return;
         }
 
         String authHeader = request.getHeader("Authorization");
 
+        // ✅ If token missing → continue, let SecurityConfig decide
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            filterChain.doFilter(request, response);
             return;
         }
 
         String token = authHeader.substring(7);
 
         if (!jwtProvider.validateToken(token)) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            filterChain.doFilter(request, response);
             return;
         }
 
         Claims claims = jwtProvider.getClaims(token);
+
         String userId = claims.getSubject();
-        String role = claims.get("role", String.class).toUpperCase();
+        String role = claims.get("role", String.class);
+
+        if (role != null) {
+            role = role.toUpperCase();
+        }
 
         UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(
-                        userId,
-                        null,
-                        List.of(new SimpleGrantedAuthority("ROLE_" + role))
-                );
+            new UsernamePasswordAuthenticationToken(
+                userId,
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_" + role))
+            );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         filterChain.doFilter(request, response);
     }
 }
+
+
 
 
