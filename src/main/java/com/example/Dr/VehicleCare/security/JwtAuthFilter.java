@@ -40,11 +40,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         // ✅ Public endpoints (MUST MATCH SecurityConfig)
+        // NOTE: payments verify should NOT be public
         if (path.startsWith("/auth/")
-            || path.startsWith("/api/bikes/")
-            || path.startsWith("/api/services/")
-            || path.startsWith("/api/payments/")
-            || path.startsWith("/uploads/")) {
+                || path.startsWith("/api/bikes/")
+                || path.startsWith("/api/services/")
+                || path.startsWith("/uploads/")
+                || path.equals("/api/payments/create-order")) {
 
             filterChain.doFilter(request, response);
             return;
@@ -52,7 +53,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
-        // ✅ If token missing → continue, let SecurityConfig decide
+        // If token missing → continue, SecurityConfig will block protected routes
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -72,21 +73,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         if (role != null) {
             role = role.toUpperCase();
+        } else {
+            // if role missing, treat as invalid token
+            filterChain.doFilter(request, response);
+            return;
         }
 
         UsernamePasswordAuthenticationToken authentication =
-            new UsernamePasswordAuthenticationToken(
-                userId,
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_" + role))
-            );
+                new UsernamePasswordAuthenticationToken(
+                        userId,
+                        null,
+                        List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         filterChain.doFilter(request, response);
     }
 }
-
-
-
-
