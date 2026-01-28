@@ -1,80 +1,79 @@
 package com.example.Dr.VehicleCare.controller;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.example.Dr.VehicleCare.model.Booking;
 import com.example.Dr.VehicleCare.model.enums.PaymentStatus;
 import com.example.Dr.VehicleCare.repository.BookingRepository;
-import com.example.Dr.VehicleCare.service.JwtService;
 import com.example.Dr.VehicleCare.service.PaymentService;
-
 import com.razorpay.Order;
+import com.razorpay.Utils;
 
 @RestController
 @RequestMapping("/api/payments")
-@CrossOrigin(origins = "http://localhost:3000", allowCredentials = "true")
 public class PaymentController {
 
     private final PaymentService paymentService;
     private final BookingRepository bookingRepository;
-    private final JwtService jwtService;
+
+    @Value("${razorpay.key.id}")
+    private String razorpayKeyId;
+
+    @Value("${razorpay.key.secret}")
+    private String razorpayKeySecret;
 
     public PaymentController(PaymentService paymentService,
-                             BookingRepository bookingRepository,
-                             JwtService jwtService) {
+                             BookingRepository bookingRepository) {
         this.paymentService = paymentService;
         this.bookingRepository = bookingRepository;
-        this.jwtService = jwtService;
     }
 
-    // CREATE RAZORPAY ORDER
+    // ✅ Send key to frontend (avoid hardcode)
+    @GetMapping("/key")
+    public ResponseEntity<?> getKey() {
+        return ResponseEntity.ok(Map.of("key", razorpayKeyId));
+    }
+
+    // ✅ CREATE RAZORPAY ORDER
     @PostMapping("/create-order")
-    public String createOrder(@RequestBody Map<String, Object> data) throws Exception {
+    public ResponseEntity<?> createOrder(@RequestBody Map<String, Object> data) throws Exception {
 
         Long bookingId = Long.valueOf(data.get("bookingId").toString());
+
+        // amount should come in PAISE
         BigDecimal amount = new BigDecimal(data.get("amount").toString());
 
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
         Order order = paymentService.createOrder(booking, amount);
-        return order.toString();
+
+        JSONObject json = order.toJson();
+
+        return ResponseEntity.ok(Map.of(
+                "id", json.getString("id"),
+                "amount", json.get("amount"),
+                "currency", json.getString("currency")
+        ));
     }
 
-    // VERIFY PAYMENT
+    // ✅ VERIFY PAYMENT (REAL VERIFICATION)
     @PostMapping("/verify")
-    public ResponseEntity<?> verifyPayment(
-            @RequestBody Map<String, String> request,
-            @RequestHeader("Authorization") String authHeader
-    ) {
-        // Extract token from header
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(401).body("Unauthorized");
-        }
-        String token = authHeader.substring(7);
-
-        Long userId;
-        try {
-            userId = Long.parseLong(jwtService.extractUserId(token)); // ✅ Always initialize here
-        } catch (Exception e) {
-            return ResponseEntity.status(401).body("Invalid token");
-        }
+    public ResponseEntity<?> verifyPayment(@RequestBody Map<String, String> request) {
 
         String bookingIdStr = request.get("bookingId");
-        if (bookingIdStr == null) {
-            return ResponseEntity.badRequest().body("Booking ID missing");
+        String razorpayOrderId = request.get("razorpay_order_id");
+        String razorpayPaymentId = request.get("razorpay_payment_id");
+        String razorpaySignature = request.get("razorpay_signature");
+
+        if (bookingIdStr == null || razorpayOrderId == null || razorpayPaymentId == null || razorpaySignature == null) {
+            return ResponseEntity.badRequest().body("Missing payment parameters");
         }
 
         Long bookingId = Long.parseLong(bookingIdStr);
@@ -82,14 +81,35 @@ public class PaymentController {
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        booking.setPaymentStatus(PaymentStatus.PAID);
-        bookingRepository.save(booking);
+        try {
+            // ✅ signature verification
+            JSONObject options = new JSONObject();
+            options.put("razorpay_order_id", razorpayOrderId);
+            options.put("razorpay_payment_id", razorpayPaymentId);
+            options.put("razorpay_signature", razorpaySignature);
 
-        return ResponseEntity.ok("Payment verified successfully");
+            boolean isValid = Utils.verifyPaymentSignature(options, razorpayKeySecret);
+
+            if (!isValid) {
+                booking.setPaymentStatus(PaymentStatus.FAILED);
+                bookingRepository.save(booking);
+                return ResponseEntity.status(400).body("Invalid payment signature");
+            }
+
+            // ✅ success
+            booking.setPaymentStatus(PaymentStatus.PAID);
+            bookingRepository.save(booking);
+
+            return ResponseEntity.ok(Map.of(
+                    "message", "Payment verified successfully",
+                    "bookingId", booking.getId(),
+                    "paymentId", razorpayPaymentId
+            ));
+
+        } catch (Exception e) {
+            booking.setPaymentStatus(PaymentStatus.FAILED);
+            bookingRepository.save(booking);
+            return ResponseEntity.status(500).body("Payment verification error: " + e.getMessage());
+        }
     }
-    
-    
-
-
-
 }
