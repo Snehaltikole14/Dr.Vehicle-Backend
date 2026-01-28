@@ -28,70 +28,74 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-@Bean
-public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
-    http
-        .csrf(csrf -> csrf.disable())
-        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-        .sessionManagement(sess ->
-            sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-        )
-        .authorizeHttpRequests(auth -> auth
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
-            // ✅ VERY IMPORTANT: allow OPTIONS (CORS preflight)
-            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+        http
+            .csrf(csrf -> csrf.disable())
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
 
-            // ✅ Public APIs
-            .requestMatchers("/auth/**").permitAll()
-            .requestMatchers("/uploads/**").permitAll()
-            .requestMatchers("/api/bikes/**").permitAll()
-            .requestMatchers("/api/services/**").permitAll()
-            .requestMatchers("/api/chat/**").permitAll()
+                // ✅ allow preflight
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-            // ✅ Razorpay / payment callbacks
-            .requestMatchers("/api/payments/**").permitAll()
+                // ✅ public
+                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/uploads/**").permitAll()
+                .requestMatchers("/api/bikes/**").permitAll()
+                .requestMatchers("/api/services/**").permitAll()
+                .requestMatchers("/api/chat/**").permitAll()
+                .requestMatchers("/api/payments/**").permitAll()
 
-            // ✅ Booking APIs (JWT required)
-            .requestMatchers("/api/bookings/**").authenticated()
+                // ✅ protected
+                .requestMatchers("/api/bookings/**").authenticated()
 
-            // ✅ Admin only
-            .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // ✅ role based
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/provider/**").hasRole("PROVIDER")
 
-            // ✅ Provider only
-            .requestMatchers("/api/provider/**").hasRole("PROVIDER")
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
-            // ❌ everything else blocked
-            .anyRequest().authenticated()
-        );
-
-    http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-
-    return http.build();
-}
-
+        return http.build();
+    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration configuration = new CorsConfiguration();
+
         configuration.setAllowedOriginPatterns(List.of(
             "http://localhost:3000",
             "http://127.0.0.1:3000",
             "https://www.drvehiclecare.com",
             "https://drvehiclecare.com"
         ));
+
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
+
+        // ✅ IMPORTANT: allow Authorization header
+        configuration.setAllowedHeaders(List.of(
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin",
+            "X-Requested-With"
+        ));
+
+        // ✅ OPTIONAL but good
+        configuration.setExposedHeaders(List.of(
+            "Authorization"
+        ));
+
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 }
-
-
-
-
-
-
