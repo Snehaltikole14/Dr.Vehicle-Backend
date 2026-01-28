@@ -17,12 +17,20 @@ import com.razorpay.Utils;
 
 @RestController
 @RequestMapping("/api/payments")
+@CrossOrigin(
+        origins = {
+                "http://localhost:3000",
+                "https://www.drvehiclecare.com",
+                "https://drvehiclecare.com"
+        },
+        allowCredentials = "true"
+)
 public class PaymentController {
 
     private final PaymentService paymentService;
     private final BookingRepository bookingRepository;
 
-    @Value("${razorpay.key}")
+    @Value("${razorpay.id}")
     private String razorpayKeyId;
 
     @Value("${razorpay.secret}")
@@ -46,13 +54,13 @@ public class PaymentController {
 
         Long bookingId = Long.valueOf(data.get("bookingId").toString());
 
-        // amount should come in PAISE
-        BigDecimal amount = new BigDecimal(data.get("amount").toString());
+        // ✅ frontend should send RUPEES
+        BigDecimal amountInRupees = new BigDecimal(data.get("amount").toString());
 
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
-        Order order = paymentService.createOrder(booking, amount);
+        Order order = paymentService.createOrder(booking, amountInRupees);
 
         JSONObject json = order.toJson();
 
@@ -82,7 +90,6 @@ public class PaymentController {
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
         try {
-            // ✅ signature verification
             JSONObject options = new JSONObject();
             options.put("razorpay_order_id", razorpayOrderId);
             options.put("razorpay_payment_id", razorpayPaymentId);
@@ -96,7 +103,6 @@ public class PaymentController {
                 return ResponseEntity.status(400).body("Invalid payment signature");
             }
 
-            // ✅ success
             booking.setPaymentStatus(PaymentStatus.PAID);
             bookingRepository.save(booking);
 
