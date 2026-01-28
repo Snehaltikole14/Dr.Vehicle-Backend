@@ -22,10 +22,10 @@ public class PaymentController {
     private final PaymentService paymentService;
     private final BookingRepository bookingRepository;
 
-    @Value("${razorpay.key.id}")
+    @Value("${razorpay.key}")
     private String razorpayKeyId;
 
-    @Value("${razorpay.key.secret}")
+    @Value("${razorpay.secret}")
     private String razorpayKeySecret;
 
     public PaymentController(PaymentService paymentService,
