@@ -59,6 +59,13 @@ public class SecurityConfig {
     .requestMatchers("/api/payments/create-order").permitAll()
     .requestMatchers("/api/payments/verify").authenticated()
 
+                               // customized service
+.requestMatchers("/api/customized/calculate").permitAll()
+.requestMatchers("/api/customized/user/**").authenticated()
+.requestMatchers("/api/customized/save").authenticated()
+.requestMatchers("/api/customized/**").authenticated()
+
+
     // bookings protected
     .requestMatchers("/api/bookings/**").authenticated()
 
@@ -111,4 +118,5 @@ public class SecurityConfig {
         return source;
     }
 }
+
 
