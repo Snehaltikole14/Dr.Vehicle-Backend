@@ -33,27 +33,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
 
-        // ✅ Allow CORS preflight
+        // ✅ Always allow preflight
         if ("OPTIONS".equalsIgnoreCase(method)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // ✅ Public endpoints (MUST MATCH SecurityConfig)
-        // NOTE: payments verify should NOT be public
-        if (path.startsWith("/auth/")
-                || path.startsWith("/api/bikes/")
-                || path.startsWith("/api/services/")
-                || path.startsWith("/uploads/")
-                || path.equals("/api/payments/create-order")) {
-
+        // ✅ Skip JWT for auth endpoints only
+        if (path.startsWith("/auth/")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String authHeader = request.getHeader("Authorization");
 
-        // If token missing → continue, SecurityConfig will block protected routes
+        // if no token, continue (Spring Security will block protected endpoints)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -61,32 +55,40 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7);
 
-        if (!jwtProvider.validateToken(token)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
+        try {
+            // validate token
+            if (!jwtProvider.validateToken(token)) {
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
 
-        Claims claims = jwtProvider.getClaims(token);
+            Claims claims = jwtProvider.getClaims(token);
 
-        String userId = claims.getSubject();
-        String role = claims.get("role", String.class);
+            String userId = claims.getSubject();
+            String role = claims.get("role", String.class);
 
-        if (role != null) {
+            if (userId == null || role == null) {
+                SecurityContextHolder.clearContext();
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             role = role.toUpperCase();
-        } else {
-            // if role missing, treat as invalid token
-            filterChain.doFilter(request, response);
-            return;
-        }
 
-        UsernamePasswordAuthenticationToken authentication =
+            UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(
-                        userId,
-                        null,
-                        List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                    userId,
+                    null,
+                    List.of(new SimpleGrantedAuthority("ROLE_" + role))
                 );
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        } catch (Exception e) {
+            // if parsing fails
+            SecurityContextHolder.clearContext();
+        }
 
         filterChain.doFilter(request, response);
     }
