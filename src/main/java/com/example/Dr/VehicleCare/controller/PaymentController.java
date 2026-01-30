@@ -18,11 +18,7 @@ import com.razorpay.Utils;
 @RestController
 @RequestMapping("/api/payments")
 @CrossOrigin(
-        origins = {
-                "http://localhost:3000",
-                "https://www.drvehiclecare.com",
-                "https://drvehiclecare.com"
-        },
+        origins = "https://www.drvehiclecare.com",
         allowCredentials = "true"
 )
 public class PaymentController {
