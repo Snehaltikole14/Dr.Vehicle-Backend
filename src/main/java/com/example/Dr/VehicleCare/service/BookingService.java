@@ -16,7 +16,7 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final CustomizedServiceRepository customizedServiceRepository;
-    private final EmailService emailService;
+    // ✅ EmailService removed
 
     @Transactional
     public Booking saveBooking(Booking booking) {
@@ -31,18 +31,15 @@ public class BookingService {
         // Save booking
         Booking savedBooking = bookingRepository.save(booking);
 
-        // Prepare bike info
-        String companyName = (booking.getBikeCompany() != null) ? booking.getBikeCompany().getName() : "Unknown Company";
-        String modelName = (booking.getBikeModel() != null) ? booking.getBikeModel().getModelName() : "Unknown Model";
-
-        // Notify admin
-        String details = "New booking:\n" +
-                         "Name: " + booking.getUser().getName() + "\n" +
-                         "Phone: " + booking.getUser().getPhone() + "\n" +
-                         "Date: " + booking.getAppointmentDate() + "\n" +
-                         "Bike: " + companyName + " " + modelName;
-
-        emailService.notifyAdminBooking(details);
+        // ================= MAIL REMOVED =================
+        // String companyName = (booking.getBikeCompany() != null) ? booking.getBikeCompany().getName() : "Unknown Company";
+        // String modelName = (booking.getBikeModel() != null) ? booking.getBikeModel().getModelName() : "Unknown Model";
+        // String details = "New booking:\n" +
+        //                  "Name: " + booking.getUser().getName() + "\n" +
+        //                  "Phone: " + booking.getUser().getPhone() + "\n" +
+        //                  "Date: " + booking.getAppointmentDate() + "\n" +
+        //                  "Bike: " + companyName + " " + modelName;
+        // emailService.notifyAdminBooking(details);
 
         return savedBooking;
     }
