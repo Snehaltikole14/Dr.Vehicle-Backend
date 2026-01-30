@@ -26,7 +26,6 @@ import com.example.Dr.VehicleCare.repository.BikeModelRepository;
 import com.example.Dr.VehicleCare.repository.BookingRepository;
 import com.example.Dr.VehicleCare.repository.CustomizedServiceRepository;
 import com.example.Dr.VehicleCare.repository.UserRepository;
-import com.example.Dr.VehicleCare.service.EmailService;
 
 @RestController
 @RequestMapping("/api/bookings")
@@ -38,22 +37,19 @@ public class BookingController {
     private final BikeCompanyRepository bikeCompanyRepository;
     private final BikeModelRepository bikeModelRepository;
     private final CustomizedServiceRepository customizedServiceRepository;
-    private final EmailService emailService;
 
     public BookingController(
             BookingRepository bookingRepository,
             UserRepository userRepository,
             BikeCompanyRepository bikeCompanyRepository,
             BikeModelRepository bikeModelRepository,
-            CustomizedServiceRepository customizedServiceRepository,
-            EmailService emailService
+            CustomizedServiceRepository customizedServiceRepository
     ) {
         this.bookingRepository = bookingRepository;
         this.userRepository = userRepository;
         this.bikeCompanyRepository = bikeCompanyRepository;
         this.bikeModelRepository = bikeModelRepository;
         this.customizedServiceRepository = customizedServiceRepository;
-        this.emailService = emailService;
     }
 
     // ================= CREATE BOOKING =================
@@ -127,10 +123,8 @@ public class BookingController {
         // SAVE BOOKING
         Booking savedBooking = bookingRepository.save(booking);
 
-        // Notify admin
-        emailService.notifyAdminBooking(
-                "New booking: " + user.getName() + " (" + user.getPhone() + ")"
-        );
+        // ================= MAIL REMOVED =================
+        // emailService.notifyAdminBooking(...); // Removed
 
         return ResponseEntity.ok(savedBooking);
     }
