@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -34,30 +35,41 @@ public class SecurityConfig {
 
         http
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .cors(Customizer.withDefaults())
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
             .authorizeHttpRequests(auth -> auth
 
                 // ✅ allow preflight
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // ✅ public
+                // ✅ public endpoints
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
+
+                // public master data
                 .requestMatchers("/api/bikes/**").permitAll()
                 .requestMatchers("/api/services/**").permitAll()
-                .requestMatchers("/api/chat/**").permitAll()
-                .requestMatchers("/api/payments/**").permitAll()
 
-                // ✅ protected
+                // chat public if required
+                .requestMatchers("/api/chat/**").permitAll()
+
+                // payments create-order public, verify should be protected
+                .requestMatchers("/api/payments/create-order").permitAll()
+
+                // ❌ IMPORTANT: verify should be authenticated
+                .requestMatchers("/api/payments/verify").authenticated()
+
+                // ✅ bookings protected
                 .requestMatchers("/api/bookings/**").authenticated()
 
-                // ✅ role based
+                // role based
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/provider/**").hasRole("PROVIDER")
 
                 .anyRequest().authenticated()
             )
+
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -68,16 +80,18 @@ public class SecurityConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOriginPatterns(List.of(
+        // ✅ best: allowed origins exact (not pattern) for production
+        configuration.setAllowedOrigins(List.of(
             "http://localhost:3000",
             "http://127.0.0.1:3000",
             "https://www.drvehiclecare.com",
             "https://drvehiclecare.com"
         ));
 
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of(
+            "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
+        ));
 
-        // ✅ IMPORTANT: allow Authorization header
         configuration.setAllowedHeaders(List.of(
             "Authorization",
             "Content-Type",
@@ -86,7 +100,6 @@ public class SecurityConfig {
             "X-Requested-With"
         ));
 
-        // ✅ OPTIONAL but good
         configuration.setExposedHeaders(List.of(
             "Authorization"
         ));
