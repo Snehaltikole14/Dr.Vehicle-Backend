@@ -38,37 +38,36 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-            .authorizeHttpRequests(auth -> auth
+        .authorizeHttpRequests(auth -> auth
 
-                // ✅ allow preflight
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+    // allow preflight
+    .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // ✅ public endpoints
-                .requestMatchers("/auth/**").permitAll()
-                .requestMatchers("/uploads/**").permitAll()
+    // public endpoints
+    .requestMatchers("/auth/**").permitAll()
+    .requestMatchers("/uploads/**").permitAll()
 
-                // public master data
-                .requestMatchers("/api/bikes/**").permitAll()
-                .requestMatchers("/api/services/**").permitAll()
+    // public master data
+    .requestMatchers("/api/bikes/**").permitAll()
+    .requestMatchers("/api/services/**").permitAll()
 
-                // chat public if required
-                .requestMatchers("/api/chat/**").permitAll()
+    // chat public if required
+    .requestMatchers("/api/chat/**").permitAll()
 
-                // payments create-order public, verify should be protected
-                .requestMatchers("/api/payments/create-order").permitAll()
+    // payments
+    .requestMatchers("/api/payments/key").permitAll()          // 🔹 added
+    .requestMatchers("/api/payments/create-order").permitAll()
+    .requestMatchers("/api/payments/verify").authenticated()
 
-                // ❌ IMPORTANT: verify should be authenticated
-                .requestMatchers("/api/payments/verify").authenticated()
+    // bookings protected
+    .requestMatchers("/api/bookings/**").authenticated()
 
-                // ✅ bookings protected
-                .requestMatchers("/api/bookings/**").authenticated()
+    // role based
+    .requestMatchers("/api/admin/**").hasRole("ADMIN")
+    .requestMatchers("/api/provider/**").hasRole("PROVIDER")
 
-                // role based
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/provider/**").hasRole("PROVIDER")
-
-                .anyRequest().authenticated()
-            )
+    .anyRequest().authenticated()
+)
 
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -112,3 +111,4 @@ public class SecurityConfig {
         return source;
     }
 }
+
