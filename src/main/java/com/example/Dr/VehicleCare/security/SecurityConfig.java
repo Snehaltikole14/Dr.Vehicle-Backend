@@ -91,7 +91,9 @@ public class SecurityConfig {
             "http://localhost:3000",
             "http://127.0.0.1:3000",
             "https://www.drvehiclecare.com",
-            "https://drvehiclecare.com"
+            "https://drvehiclecare.com",
+            "https://www.drvehiclecare.in",
+            "https://drvehiclecare.in"
         ));
 
         configuration.setAllowedMethods(List.of(
