@@ -152,11 +152,14 @@ public class AdminController {
         return ResponseEntity.ok("Booking rejected");
     }
 
-    @GetMapping("/bookings")
-    public ResponseEntity<List<Booking>> getAllBookings() {
-        List<Booking> bookings = bookingRepository.findAll();
-        return ResponseEntity.ok(bookings);
-    }
+   @GetMapping("/bookings")
+public ResponseEntity<List<Booking>> getAllBookings() {
+
+    List<Booking> bookings =
+            bookingRepository.findByPaymentStatus(PaymentStatus.PAID);
+
+    return ResponseEntity.ok(bookings);
+}
 
 
 
