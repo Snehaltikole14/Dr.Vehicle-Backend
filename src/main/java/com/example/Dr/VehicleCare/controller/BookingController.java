@@ -130,14 +130,22 @@ public class BookingController {
     }
 
     // ================= GET MY BOOKINGS =================
-    @GetMapping("/my")
-    public ResponseEntity<?> myBookings(Principal principal) {
-        if (principal == null) {
-            return ResponseEntity.status(401).body("Unauthorized");
-        }
-        Long userId = Long.parseLong(principal.getName());
-        return ResponseEntity.ok(bookingRepository.findByUserId(userId));
+ @GetMapping("/my")
+public ResponseEntity<?> myBookings(Principal principal) {
+
+    if (principal == null) {
+        return ResponseEntity.status(401).body("Unauthorized");
     }
+
+    Long userId = Long.parseLong(principal.getName());
+
+    return ResponseEntity.ok(
+        bookingRepository.findByUserIdAndPaymentStatus(
+            userId,
+            PaymentStatus.PAID
+        )
+    );
+}
 
     // ================= GET BOOKING BY ID =================
     @GetMapping("/{id}")
