@@ -99,8 +99,14 @@ public class PaymentController {
                 return ResponseEntity.status(400).body("Invalid payment signature");
             }
 
-            booking.setPaymentStatus(PaymentStatus.PAID);
-            bookingRepository.save(booking);
+           booking.setPaymentStatus(PaymentStatus.PAID);
+
+booking.setRazorpayOrderId(razorpayOrderId);
+booking.setRazorpayPaymentId(razorpayPaymentId);
+booking.setRazorpaySignature(razorpaySignature);
+booking.setPaymentVerified(true);
+
+bookingRepository.save(booking);
 
             return ResponseEntity.ok(Map.of(
                     "message", "Payment verified successfully",
