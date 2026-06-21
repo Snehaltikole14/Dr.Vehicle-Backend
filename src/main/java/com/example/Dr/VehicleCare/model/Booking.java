@@ -109,6 +109,14 @@ public class Booking {
 
      @Column(name = "time_slot", nullable = false)
     private String timeSlot;
+
+    private String razorpayOrderId;
+
+private String razorpayPaymentId;
+
+private String razorpaySignature;
+
+private Boolean paymentVerified = false;
    
 }
 
