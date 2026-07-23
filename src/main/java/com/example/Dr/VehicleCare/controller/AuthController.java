@@ -32,22 +32,37 @@ public class AuthController {
     private OtpService otpService;
 
     // ===================== SIGNUP (OTP REQUEST) =====================
-    @PostMapping("/signup/request-otp")
-    public ResponseEntity<?> requestSignupOtp(@RequestBody Map<String, String> request) {
+   @PostMapping("/signup/request-otp")
+public ResponseEntity<?> requestSignupOtp(
+        @RequestBody Map<String, String> request) {
 
-        String phone = request.get("phone");
+    String phone = request.get("phone");
+    String email = request.get("email");
 
-        if (phone == null || phone.isBlank()) {
-            return ResponseEntity.badRequest().body("Phone number is required");
-        }
-
-        if (userService.findByPhone(phone).isPresent()) {
-            return ResponseEntity.badRequest().body("Phone number already registered");
-        }
-
-        otpService.generateOtp(phone);
-        return ResponseEntity.ok("OTP sent to your phone number");
+    if (phone == null || phone.isBlank()) {
+        return ResponseEntity.badRequest()
+                .body("Phone number is required");
     }
+
+    if (email == null || email.isBlank()) {
+        return ResponseEntity.badRequest()
+                .body("Email is required");
+    }
+
+    if (userService.findByPhone(phone).isPresent()) {
+        return ResponseEntity.badRequest()
+                .body("Phone number already registered");
+    }
+
+    if (userService.findByEmail(email).isPresent()) {
+        return ResponseEntity.badRequest()
+                .body("Email already registered");
+    }
+
+    otpService.generateOtp(phone);
+
+    return ResponseEntity.ok("OTP sent to your phone number");
+}
 
     // ===================== SIGNUP (VERIFY OTP) =====================
     @PostMapping("/signup/verify-otp")
