@@ -84,6 +84,23 @@ public ResponseEntity<?> requestSignupOtp(
         );
 
         return ResponseEntity.ok(userService.registerCustomer(user));
+
+        // Email as username
+    user.setEmail(request.getEmail());
+
+    user.setPhone(request.getPhone());
+
+    user.setPasswordHash(request.getPassword());
+
+    user.setRole(
+            request.getRole() != null
+                    ? UserRole.valueOf(request.getRole())
+                    : UserRole.CUSTOMER
+    );
+
+    return ResponseEntity.ok(
+            userService.registerCustomer(user)
+    );
     }
 
     // ===================== LOGIN =====================
