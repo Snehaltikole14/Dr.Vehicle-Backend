@@ -65,27 +65,23 @@ public ResponseEntity<?> requestSignupOtp(
 }
 
     // ===================== SIGNUP (VERIFY OTP) =====================
-    @PostMapping("/signup/verify-otp")
-    public ResponseEntity<?> verifySignupOtp(@Valid @RequestBody SignUpRequest request) {
+   @PostMapping("/signup/verify-otp")
+public ResponseEntity<?> verifySignupOtp(
+        @Valid @RequestBody SignUpRequest request) {
 
-        if (!otpService.verifyOtp(request.getPhone(), request.getOtp())) {
-            return ResponseEntity.badRequest().body("Invalid or expired OTP");
-        }
+    if (!otpService.verifyOtp(
+            request.getPhone(),
+            request.getOtp())) {
 
-        User user = new User();
-        user.setName(request.getName());
-        user.setPhone(request.getPhone());
-        user.setPasswordHash(request.getPassword());
+        return ResponseEntity.badRequest()
+                .body("Invalid or expired OTP");
+    }
 
-        user.setRole(
-                request.getRole() != null
-                        ? UserRole.valueOf(request.getRole())
-                        : UserRole.CUSTOMER
-        );
+    User user = new User();
 
-        return ResponseEntity.ok(userService.registerCustomer(user));
+    user.setName(request.getName());
 
-        // Email as username
+    // Email must be set BEFORE return
     user.setEmail(request.getEmail());
 
     user.setPhone(request.getPhone());
@@ -101,7 +97,7 @@ public ResponseEntity<?> requestSignupOtp(
     return ResponseEntity.ok(
             userService.registerCustomer(user)
     );
-    }
+}
 
     // ===================== LOGIN =====================
     @PostMapping("/login")
